@@ -179,6 +179,7 @@ def rnaRemap(datapath,cores,sampleName, countpath,resultpath,rna_index,strand, r
     file1 = datapath + '/' + sampleName + '_1P.fastq.gz'
     file2 = datapath + '/' + sampleName + '_2P.fastq.gz'
     out_bam = resultpath + '/' + sampleName + '.%s.bam' %(rna_type)
+    out_bed = resultpath + '/' + sampleName + '.%s.bed' %(rna_type)
     if strand == 0:
         type = ' --norc '
     elif strand == 1:
@@ -192,12 +193,12 @@ def rnaRemap(datapath,cores,sampleName, countpath,resultpath,rna_index,strand, r
             '| tee %s ' %out_bam +\
             '| bedtools bamtobed -mate1 -bedpe -i - '+\
             '| python bedpetobed.py /dev/stdin ' +\
-            '> %s' %(out_bam.replace('.bam','.bed'))
-    count_command = 'samtools view %s' %(out_bam) +\
-        '| cut -f3' + \
+            '> %s' %(out_bed)
+    count_command = 'cat %s' %(out_bed) +\
+        '| cut -f1' + \
         '| sort ' +\
-        '| uniq ' +\
-        "| awk 'print $2,$1' OFS='\t'" +\
+        '| uniq -c ' +\
+        "| awk '{print $2,$1}' OFS='\t'" +\
         '> %s/%s.%s.counts' %(countpath, sampleName, rna_type)
     runProcess((map_command, sampleName))
     runProcess((count_command, sampleName))
