@@ -9,7 +9,7 @@ BED_PATH=${REF}/GRCh38/Bed_for_counts_only #bed file GRCh38
 tRNA_INDEX=${REF}/GRCh38/tRNA/temp/tRNA #tRNA with mtTRNA and cytosolic tRNA
 rRNA_INDEX=${REF}/GRCh38/Plasma_ref/rDNA #tRNA with mtTRNA and cytosolic tRNA
 SPLICE_FILE=${REF}/RNASeqConsortium/splicesite.txt
-THREADS=16
+THREADS=24
 ADAPTOR=adaptors.fa
 STRAND=forward
 
