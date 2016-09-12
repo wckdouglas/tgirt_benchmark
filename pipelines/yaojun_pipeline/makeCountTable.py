@@ -46,6 +46,7 @@ def main():
     df = pd.concat(dfs, axis=0) \
         .pipe(pd.pivot_table,index = ['id','name','type'],  
             values = 'count' , columns = ['sample_name']) \
+        .reset_index()\
         .fillna(0)
     tablename = count_file_path + '/combined_gene_count.tsv'
     df.to_csv(tablename, sep='\t', index=False)
