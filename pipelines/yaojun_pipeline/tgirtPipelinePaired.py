@@ -211,15 +211,15 @@ def countBam(bamFile, bedpath, countpath, sampleName):
         '| bedtools bamtobed -mate1 -bedpe -i - ' +\
         '| python bedpetobed.py /dev/stdin ' +\
         '| bedtools  coverage -s -counts -F 0.1 -a %s/sncRNA_no_tRNA.bed -b -' %(bedpath) +\
-        '| cut -f3,7-9 ' +\
+        '| cut -f4,7-9 ' +\
         '> %s/%s.sncRNA.counts' %(countpath, sampleName)
     non_snc_command = 'bedtools pairtobed -s -f 0.5 -type neither '+\
             '-abam %s -b %s/sncRNA_rRNA.bed ' %(bamFile, bedpath) +\
-            '| bedtools bamtobed -mate1 -bedpe -i - ' +\
-            '| python bedpetobed.py /dev/stdin ' +\
-            '| bedtools coverage -s -counts -F 0.1 -a %s/genes_no_sncRNA_rRNA_tRNA.bed -b - ' %(bedpath) +\
-            '| cut -f4,7-9 ' +\
-            '> %s/%s.non_sRNA.counts' %(countpath, sampleName)
+        '| bedtools bamtobed -mate1 -bedpe -i - ' +\
+        '| python bedpetobed.py /dev/stdin ' +\
+        '| bedtools coverage -s -counts -F 0.1 -a %s/genes_no_sncRNA_rRNA_tRNA.bed -b - ' %(bedpath) +\
+        '| cut -f4,7-9 ' +\
+        '> %s/%s.non_sRNA.counts' %(countpath, sampleName)
     runProcess((snc_command, sampleName))
     runProcess((non_snc_command,sampleName))
     return 0
