@@ -15,8 +15,7 @@ do
 	SAMPLENAME=$(basename ${R1%_R1_001.fastq.gz})
 	echo kallisto quant \
 		-i ${INDEX} -o ${COUNT_PATH}/${SAMPLENAME} \
-		--fr-stranded  --threads=${THREADS}\
-		${R1} ${R2} --pseudobam  \
-		\> ${BAM_PATH}/${SAMPLENAME}.bam
+		--fr-stranded --threads=${THREADS}\
+		${R1} ${R2} 
 done
 
