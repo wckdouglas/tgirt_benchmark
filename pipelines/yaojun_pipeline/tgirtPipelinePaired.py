@@ -188,7 +188,7 @@ def rnaRemap(datapath,cores,sampleName, countpath,resultpath,rna_index,strand, r
     map_command = 'bowtie2 --threads %i ' %(cores)+ \
             '--local -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 --no-mixed --no-discordant ' +\
             type + '-x %s -1 %s -2 %s ' %(rna_index, file1,file2) + \
-            "| samtools view -b@ %i "%(cores) + \
+            "| samtools view -bF4 -@ %i "%(cores) + \
             '| tee %s ' %out_bam +\
             '| bedtools bamtobed -mate1 -bedpe -i - '+\
             '| python bedpetobed.py /dev/stdin ' +\
@@ -200,6 +200,7 @@ def rnaRemap(datapath,cores,sampleName, countpath,resultpath,rna_index,strand, r
         "| awk 'print $2,$1' OFS='\t'" +\
         '> %s/%s.%s.counts' %(countpath, sampleName, rna_type)
     runProcess((map_command, sampleName))
+    runProcess((count_command, sampleName))
     return out_bam
 
 
