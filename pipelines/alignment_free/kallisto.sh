@@ -16,7 +16,6 @@ do
 	echo kallisto quant \
 		-i ${INDEX} -o ${COUNT_PATH}/${SAMPLENAME} \
 		--fr-stranded  --threads=${THREADS}\
-		${R1} ${R2} --pseudobam  \
-		\> ${BAM_PATH}/${SAMPLENAME}.bam
+		${R1} ${R2} --plainplaintext 
 done
 
