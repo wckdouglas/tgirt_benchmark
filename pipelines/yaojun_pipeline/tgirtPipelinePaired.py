@@ -198,7 +198,7 @@ def rnaRemap(datapath,cores,sampleName, countpath,resultpath,rna_index,strand, r
         '| cut -f1' + \
         '| sort ' +\
         '| uniq -c ' +\
-        "| awk '{print $2,$1}' OFS='\t'" +\
+        "| awk '{print $2,$1}' OFS='\\t'" +\
         '> %s/%s.%s.counts' %(countpath, sampleName, rna_type)
     runProcess((map_command, sampleName))
     runProcess((count_command, sampleName))
