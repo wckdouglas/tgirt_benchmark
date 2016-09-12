@@ -143,7 +143,7 @@ def multibamToPrimary(hisat_multi_bam, bowtie2_multi_bam, hisat_uniq_bam,
 
 def getBedMappedID(uniqueBam, idpath, sampleName, bed_ref):
     idFile = '%s/%s.id.dat' %(idpath,sampleName)
-    command = 'bedtools intersect -s -abam %s -b %s/ -f 0.5' %(uniqueBam, bed_ref) + \
+    command = 'bedtools intersect -s -abam %s -b %s -f 0.5' %(uniqueBam, bed_ref) + \
             "| samtools view " +\
             "| awk {'print $1'} > %s" %idFile
     runProcess((command,sampleName))
