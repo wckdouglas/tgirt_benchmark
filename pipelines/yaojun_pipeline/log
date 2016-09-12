@@ -1,0 +1,114 @@
+Using forward strand for /stor/scratch/Lambowitz/cdw2854/bench_marking/data/try_R1_001.fastq.gz
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat/unmapped....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat/unmapped exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat/mappedBam....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat/mappedBam exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/bowtie2....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/bowtie2 exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/bowtie2/mapped....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/bowtie2/mapped exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bamFiles....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bamFiles exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bamFiles/uniqueBam....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bamFiles/uniqueBam exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bamFiles/multiBam....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bamFiles/multiBam exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/countFiles....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/countFiles exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/alltRNA....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/alltRNA exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bedFiles....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bedFiles exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bedFiles/uniqueBed....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bedFiles/uniqueBed exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bedFiles/multiBed....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bedFiles/multiBed exists.
+Creating /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/allrRNA....
+/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/allrRNA exists.
+[try] Running: trimmomatic PE -threads 16 -phred33 -basein /stor/scratch/Lambowitz/cdw2854/bench_marking/data/try_R1_001.fastq.gz -baseout /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed/try.fastq.gz ILLUMINACLIP:adaptors.fa:2:10:10:1:true LEADING:10 TRAILING:10  SLIDINGWINDOW:4:8 MINLEN:10  AVGQUAL:20
+TrimmomaticPE: Started with arguments:
+ -threads 16 -phred33 -basein /stor/scratch/Lambowitz/cdw2854/bench_marking/data/try_R1_001.fastq.gz -baseout /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed/try.fastq.gz ILLUMINACLIP:adaptors.fa:2:10:10:1:true LEADING:10 TRAILING:10 SLIDINGWINDOW:4:8 MINLEN:10 AVGQUAL:20
+Using templated Input files: /stor/scratch/Lambowitz/cdw2854/bench_marking/data/try_R1_001.fastq.gz /stor/scratch/Lambowitz/cdw2854/bench_marking/data/try_R2_001.fastq.gz
+Using templated Output files: /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed/try_1P.fastq.gz /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed/try_1U.fastq.gz /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed/try_2P.fastq.gz /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed/try_2U.fastq.gz
+Using PrefixPair: 'AATGATACGGCGACCACCGAGATCTACACGTTCAGAGTTCTACAGTCCGACGATC' and 'CAAGCAGAAGACGGCATACGAGATNNNNNNGTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT'
+Using Long Clipping Sequence: 'GATCGTCGGACTGTAGAACTCTGAACGTGTAGATCTCGGTGGTCGCCGTATCATT'
+Using Long Clipping Sequence: 'AGATCGGAAGAGCACACGTCTGAACTCCAGTCACNNNNNNATCTCGTATGCCGTCTTCTGCTTG'
+Using Medium Clipping Sequence: 'AATGATACGGCGACCACCGAGA'
+Using Long Clipping Sequence: 'ATCTCGTATGCCGTCTTCTGCTTG'
+Using Long Clipping Sequence: 'CAAGCAGAAGACGGCATACGAGATNNNNNNGTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT'
+Using Long Clipping Sequence: 'AATGATACGGCGACCACCGAGATCTACACGTTCAGAGTTCTACAGTCCGACGATC'
+ILLUMINACLIP: Using 1 prefix pairs, 6 forward/reverse sequences, 0 forward only sequences, 0 reverse only sequences
+Input Read Pairs: 2500 Both Surviving: 2405 (96.20%) Forward Only Surviving: 24 (0.96%) Reverse Only Surviving: 0 (0.00%) Dropped: 71 (2.84%)
+TrimmomaticPE: Completed successfully
+[try] Used time 0.006 min
+[try] Running: hisat2 --known-splicesite-infile /stor/work/Lambowitz/ref/RNASeqConsortium/splicesite.txt --no-discordant --no-mixed -k 10 --threads 16 -x /stor/work/Lambowitz/ref/RNASeqConsortium/reference.fasta -1 /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed/try_1P.fastq.gz -2 /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed/try_2P.fastq.gz | samtools view -b -@ 16 > /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat/mappedBam/try.bam
+2405 reads; of these:
+  2405 (100.00%) were paired; of these:
+    180 (7.48%) aligned concordantly 0 times
+    1746 (72.60%) aligned concordantly exactly 1 time
+    479 (19.92%) aligned concordantly >1 times
+92.52% overall alignment rate
+[try] Used time 0.050 min
+[try] Running: python splitBam.py --outprefix=/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat/mappedBam/try --program=hisat2 --inBam=/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat/mappedBam/try.bam
+[try] Used time 0.009 min
+[try] Running: seqtk subseq /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed/try_1P.fastq.gz /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat/mappedBam/try.id.dat |gzip > /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat/unmapped/try_1P.fastq.gz
+[try] Running: seqtk subseq /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed/try_2P.fastq.gz /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat/mappedBam/try.id.dat |gzip > /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat/unmapped/try_2P.fastq.gz
+[try] Used time 0.000 min
+[try] Used time 0.000 min
+[try] Running: bowtie2 -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 --threads 16 --time --no-mixed --no-discordant -x /stor/work/Lambowitz/ref/RNASeqConsortium/reference.fasta -1 /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat/unmapped/try_1P.fastq.gz -2 /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat/unmapped/try_2P.fastq.gz | samtools view -@ 16 -b - > /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/bowtie2/try.bam
+Time loading reference: 00:00:00
+Time loading forward index: 00:00:01
+Time loading mirror index: 00:00:00
+Multiseed full-index search: 00:00:01
+180 reads; of these:
+  180 (100.00%) were paired; of these:
+    97 (53.89%) aligned concordantly 0 times
+    42 (23.33%) aligned concordantly exactly 1 time
+    41 (22.78%) aligned concordantly >1 times
+46.11% overall alignment rate
+Time searching: 00:00:02
+Overall time: 00:00:02
+[try] Used time 0.036 min
+[try] Running: python splitBam.py --outprefix=/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/bowtie2/try --inBam=/stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/bowtie2/try.bam --program=bowtie2
+[try] Used time 0.004 min
+[try] Running: samtools cat /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat/mappedBam/try.multi.bam /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/bowtie2/try.multi.bam | python reduce_multi_reads.py --infile=- --outfile=- --bam_in --bam_out | samtools cat /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/hisat/mappedBam/try.unique.bam /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/bowtie2/try.unique.bam - | samtools sort -@ 16 -n -O bam -T /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bamFiles/uniqueBam/try>  /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bamFiles/uniqueBam/try.primary.bam 
+Start processing bam file: -
+Writing to: -
+Processed: 1000
+Processed: 2000
+[try] Used time 0.005 min
+[try] Running: bedtools intersect -s -abam /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bamFiles/uniqueBam/try.primary.bam -b /stor/work/Lambowitz/ref/GRCh38/Bed_for_counts_only/tRNA.bed/ -f 0.5| samtools view | awk {'print $1'} > /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/alltRNA/try.id.dat
+Error: Unable to open file /stor/work/Lambowitz/ref/GRCh38/Bed_for_counts_only/tRNA.bed/. Exiting.
+[try] Used time 0.000 min
+[try] Running: bedtools intersect -s -abam /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bamFiles/uniqueBam/try.primary.bam -b /stor/work/Lambowitz/ref/GRCh38/Bed_for_counts_only/rRNA.bed/ -f 0.5| samtools view | awk {'print $1'} > /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/allrRNA/try.id.dat
+Error: Unable to open file /stor/work/Lambowitz/ref/GRCh38/Bed_for_counts_only/rRNA.bed/. Exiting.
+[try] Used time 0.000 min
+[try] Running: seqtk subseq /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed/try_1P.fastq.gz /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/alltRNA/try.id.dat |gzip > /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/alltRNA/try_1P.fastq.gz
+[try] Running: seqtk subseq /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed/try_2P.fastq.gz /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/alltRNA/try.id.dat |gzip > /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/alltRNA/try_2P.fastq.gz
+[try] Used time 0.000 min
+[try] Used time 0.000 min
+[try] Running: seqtk subseq /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed/try_1P.fastq.gz /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/allrRNA/try.id.dat |gzip > /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/allrRNA/try_1P.fastq.gz
+[try] Running: seqtk subseq /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/trimmed/try_2P.fastq.gz /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/allrRNA/try.id.dat |gzip > /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/allrRNA/try_2P.fastq.gz
+[try] Used time 0.000 min
+[try] Used time 0.000 min
+[try] Running: bowtie2 --threads 16 --local -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 --no-mixed --no-discordant  --norc -x /stor/work/Lambowitz/ref/GRCh38/tRNA/temp/tRNA -1 /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/alltRNA/try_1P.fastq.gz -2 /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/alltRNA/try_2P.fastq.gz | samtools view -b@ 16 | tee /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/alltRNA/try.tRNA.bam | bedtools bamtobed -mate1 -bedpe -i - | python bedpetobed.py /dev/stdin > /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/alltRNA/try.tRNA.bed
+0 reads
+0.00% overall alignment rate
+[try] Used time 0.019 min
+[try] Running: bowtie2 --threads 16 --local -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 --no-mixed --no-discordant  -x /stor/work/Lambowitz/ref/GRCh38/Plasma_ref/rDNA -1 /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/allrRNA/try_1P.fastq.gz -2 /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/allrRNA/try_2P.fastq.gz | samtools view -b@ 16 | tee /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/allrRNA/try.rRNA.bam | bedtools bamtobed -mate1 -bedpe -i - | python bedpetobed.py /dev/stdin > /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/allrRNA/try.rRNA.bed
+0 reads
+0.00% overall alignment rate
+[try] Used time 0.016 min
+[try] Running: bedtools pairtobed -s -f 0.5 -abam /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bamFiles/uniqueBam/try.primary.bam -b /stor/work/Lambowitz/ref/GRCh38/Bed_for_counts_only/sncRNA_no_tRNA.bed| bedtools bamtobed -mate1 -bedpe -i - | python bedpetobed.py /dev/stdin | bedtools  coverage -s -counts -F 0.1 -a /stor/work/Lambowitz/ref/GRCh38/Bed_for_counts_only/sncRNA_no_tRNA.bed -b -| cut -f3,7-9 > /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/countFiles/try.sncRNA.counts
+[try] Used time 0.017 min
+[try] Running: bedtools pairtobed -s -f 0.5 -type neither -abam /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/bamFiles/uniqueBam/try.primary.bam -b /stor/work/Lambowitz/ref/GRCh38/Bed_for_counts_only/sncRNA_rRNA.bed | bedtools bamtobed -mate1 -bedpe -i - | python bedpetobed.py /dev/stdin | bedtools coverage -s -counts -F 0.1 -a /stor/work/Lambowitz/ref/GRCh38/Bed_for_counts_only/genes_no_sncRNA_rRNA_tRNA.bed -b - | cut -f3,7-9 > /stor/scratch/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/countFiles/try.non_sRNA.counts
+[try] Used time 0.032 min
+Finished: try in 0.003 hr 
