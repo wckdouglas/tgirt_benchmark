@@ -165,7 +165,7 @@ def id2Fastq(fastqPath,sampleName,idFile,resultpath, cores):
     Pool(cores).map(runProcess,[(command, sampleName) for command in commands])
     return 0
 
-def rnaRemap(datapath,cores,sampleName,resultpath,rna_index,strand, rna_type):
+def rnaRemap(datapath,cores,sampleName, countpath,resultpath,rna_index,strand, rna_type):
     """
         Mapping all unmapped + tRNA reads to tRNA reference and
         extract the reads that mapped to tRNA locus
@@ -185,7 +185,7 @@ def rnaRemap(datapath,cores,sampleName,resultpath,rna_index,strand, rna_type):
         type = ' --nofw '
     elif strand == 2:
         type = ' '
-    command = 'bowtie2 --threads %i ' %(cores)+ \
+    map_command = 'bowtie2 --threads %i ' %(cores)+ \
             '--local -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 --no-mixed --no-discordant ' +\
             type + '-x %s -1 %s -2 %s ' %(rna_index, file1,file2) + \
             "| samtools view -b@ %i "%(cores) + \
@@ -193,7 +193,13 @@ def rnaRemap(datapath,cores,sampleName,resultpath,rna_index,strand, rna_type):
             '| bedtools bamtobed -mate1 -bedpe -i - '+\
             '| python bedpetobed.py /dev/stdin ' +\
             '> %s' %(out_bam.replace('.bam','.bed'))
-    runProcess((command, sampleName))
+    count_command = 'samtools view %s' %(out_bam) +\
+        '| cut -f3' + \
+        '| sort ' +\
+        '| uniq ' +\
+        "| awk 'print $2,$1' OFS='\t'" +\
+        '> %s/%s.%s.counts' %(countpath, sampleName, rna_type)
+    runProcess((map_command, sampleName))
     return out_bam
 
 
@@ -210,7 +216,7 @@ def countBam(bamFile, bedpath, countpath, sampleName):
             '| bedtools bamtobed -mate1 -bedpe -i - ' +\
             '| python bedpetobed.py /dev/stdin ' +\
             '| bedtools coverage -s -counts -F 0.1 -a %s/genes_no_sncRNA_rRNA_tRNA.bed -b - ' %(bedpath) +\
-            '| cut -f3,7-9 ' +\
+            '| cut -f4,7-9 ' +\
             '> %s/%s.non_sRNA.counts' %(countpath, sampleName)
     runProcess((snc_command, sampleName))
     runProcess((non_snc_command,sampleName))
@@ -273,8 +279,8 @@ def programSequenceControl(fastqFile,resultpath,cores,humanIndex, bedpath,
     id2Fastq(trimResultPath, sampleName, rRNA_id_file, allrRNAfastqPath, cores)
 
     #mapping tRNA
-    tRNA_bam = rnaRemap(alltRNAfastqPath,cores,sampleName,alltRNAfastqPath, tRNA_index,strand, 'tRNA')
-    rRNA_bam = rnaRemap(allrRNAfastqPath,cores,sampleName,allrRNAfastqPath, rRNA_index, 2 ,'rRNA')
+    tRNA_bam = rnaRemap(alltRNAfastqPath,cores,sampleName, countPath, alltRNAfastqPath, tRNA_index, strand, 'tRNA')
+    rRNA_bam = rnaRemap(allrRNAfastqPath,cores,sampleName, countPath, allrRNAfastqPath, rRNA_index, 2 ,'rRNA')
 
     #countBAm
     countBam(primary_bam, bedpath, countPath, sampleName)
