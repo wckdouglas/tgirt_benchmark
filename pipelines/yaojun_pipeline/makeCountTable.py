@@ -32,7 +32,7 @@ def readSample(count_file_path, sample_id):
     count_files = glob.glob(count_file_path + '/' + sample_id + '*counts')
     dfs = map(readDF,count_files)
     df = pd.concat(dfs, axis= 0)\
-        .assign(sample_name = sample_id)
+        .assign(sample_name = sample_id.replace('-','_'))
     return df
 
 def main():

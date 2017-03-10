@@ -2,7 +2,6 @@
 
 import pysam
 import argparse
-import parse_bam
 import re
 import numpy as np
 

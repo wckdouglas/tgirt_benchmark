@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!bin/bash
 
 # Pipeline for PE reads
 
@@ -10,7 +10,7 @@
 # $5 is the Bowtie2 index
 
 # 1. check folder structure, if not exit, make one
-# folder structure:
+# folder structure: 
 # RAW fastq is stored under $HOME/NGS/Data/$1, which should exist before running this script
 # The folder will be checked and created while not existing is $HOME/NGS/Work/$1
 # $HOME/NGS/Work/$1-----Trim
@@ -24,33 +24,25 @@
 # 		             |-----Over10
 # 		             |-----tRNA_RAW
 # 		             |-----tRNA_anti
-
-if [[ $@ -ne 6 ]]
-then
-	echo "Usage: bash $0 <job number> <samplename> <reference> <splicesite file> <bowtie-index> <output path>"
-	exit
-fi
-
-JA=$1
+Workfolder=$1
 Sample=$2
 Ref=$3
 Splicesite=$4
 Bowtie=$5
-Outdir=$6
 
-RAWfolder="$WORK/NGS/Data/$JA"
-Workfolder="$WORK/NGS/Work/$JA"
-Trimfolder="$WORK/NGS/Work/$JA/Trim"
-Samplefolder="$WORK/NGS/Work/$JA/$Sample"
-Countsfolder="$WORK/NGS/Work/$JA/Counts"
+RAWfolder=$(dirname $Workfolder)/data
+Trimfolder=$Workfolder/Trim
+Samplefolder=$Workfolder/$Sample
+Countsfolder=$Workfolder/Counts
 
 if [ ! -d "$RAWfolder" ] ; then echo "This folder doesn't exist."; exit 1; fi
-if [ ! -d "$Workfolder" ] ; then
+if [ ! -d "$Workfolder" ] ; then 
 	mkdir -p "$Trimfolder"
 	mkdir -p "$Samplefolder/Hisat"
 	mkdir "$Samplefolder/Bowtie"
 	mkdir "$Samplefolder/Combined"
 	mkdir "$Samplefolder/tRNA"
+	mkdir "$Samplefolder/rRNA"
 	mkdir -p "$Countsfolder/RAW"
 	mkdir "$Countsfolder/Simple"
 	mkdir "$Countsfolder/Over10"
@@ -62,6 +54,7 @@ else
 		mkdir "$Samplefolder/Bowtie"
 		mkdir "$Samplefolder/Combined"
 		mkdir "$Samplefolder/tRNA"
+		mkdir "$Samplefolder/rRNA"
 	else
 		if [ ! -d "$Samplefolder/Hisat" ] ; then
 			mkdir "$Samplefolder/Hisat"
@@ -75,6 +68,9 @@ else
 		if [ ! -d "$Samplefolder/tRNA" ] ; then
 			mkdir "$Samplefolder/tRNA"
 		fi
+		if [ ! -d "$Samplefolder/rRNA" ] ; then
+                        mkdir "$Samplefolder/rRNA"
+                fi
 	fi
 	if [ ! -d "$Countsfolder" ] ; then
 		mkdir -p "$Countsfolder/RAW"
@@ -104,7 +100,7 @@ else
 	fi
 fi
 
-#2 Start adapt trimming,
+#2 Start adapt trimming, 
 file="$RAWfolder/$Sample*.gz"
 file1=$(echo $file|cut -f 1 -d " ")
 file2=$(echo $file|cut -f 2 -d " ")
@@ -112,52 +108,52 @@ num_of_file=$(ls $file|wc -l)
 if [ $num_of_file != 2 ];then echo "More than 2 files share the same sample name, make sure the name is uniq and you have PE reads"; exit 1;fi
 trimed1="$Trimfolder/$Sample.1.fq.gz"
 trimed2="$Trimfolder/$Sample.2.fq.gz"
-#cutadapt -m 15 -O 5 -n 3 -q 20 -a AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC  -A TGATCGTCGGACTGTAGAACTCTGAACGTGTAGA -o $trimed1 -p $trimed2 $file1 $file2
+cutadapt -m 15 -O 5 -n 3 -q 20 -b AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC  -B TGATCGTCGGACTGTAGAACTCTGAACGTGTAGA -o $trimed1 -p $trimed2 $file1 $file2
 
 #3 Hisat2 mapping, Pass1
-#hisat2 -p 24 -k 10 --no-mixed --no-discordant --known-splicesite-infile $Splicesite --novel-splicesite-outfile "$Samplefolder/Hisat/novelsite.txt" -x $Ref -1 $trimed1 -2 $trimed2 |samtools view -bS - > "$Samplefolder/Hisat/hisat.bam"
+hisat2 -p 24 -k 10 --no-mixed --no-discordant --known-splicesite-infile $Splicesite --novel-splicesite-outfile "$Samplefolder/Hisat/novelsite.txt" -x $Ref -1 $trimed1 -2 $trimed2 |samtools view -bS - > "$Samplefolder/Hisat/hisat.bam"
 
 #4 Process Tophat output
 cd "$Samplefolder/Hisat/"
-#samtools view -H hisat.bam > header.sam
+samtools view -H hisat.bam > header.sam
 # remove non-human and non-concordant reads
-#samtools view -F4 hisat.bam |grep -w "NH:i:1" | awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
-#((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' >> uniq.sam
-#samtools view -F4 hisat.bam |grep -v -w "NH:i:1" | awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
-#((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' >> multi.sam
+samtools view -F4 hisat.bam |grep -w "NH:i:1" | awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
+((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' >> uniq.sam
+samtools view -F4 hisat.bam |grep -v -w "NH:i:1" | awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
+((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' >> multi.sam
 
 #5 Preparing reads for Bowtie2 mapping
 cd "$Samplefolder/Bowtie/"
-#samtools view -@ 24 -bf4 "$Samplefolder/Hisat/hisat.bam" > unmapped.bam
-#bam2fastx -q -Q -A -P -N -o unmapped.fq unmapped.bam
-#rm unmapped.bam
-#gzip -f unmapped.1.fq
-#gzip -f unmapped.2.fq
+samtools view -@ 24 -bf4 "$Samplefolder/Hisat/hisat.bam" > unmapped.bam
+bam2fastx -q -Q -A -P -N -o unmapped.fq unmapped.bam
+rm unmapped.bam
+gzip -f unmapped.1.fq
+gzip -f unmapped.2.fq
 
 #6 Bowtie2 mapping (Pass2)
-#bowtie2 --local -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 -p 24 -k 10 --no-mixed --no-discordant -x $Bowtie -1 unmapped.1.fq.gz -2 unmapped.2.fq.gz | samtools view -bS - > bowtie2.bam
+bowtie2 --local -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 -p 24 -k 10 --no-mixed --no-discordant -x $Bowtie -1 unmapped.1.fq.gz -2 unmapped.2.fq.gz | samtools view -bS - > bowtie2.bam
 
 #7 Process Bowtie2 output
-#samtools view -bf4 -@ 24 bowtie2.bam > unmapped.bam
+samtools view -bf4 -@ 24 bowtie2.bam > unmapped.bam
 # remove non-human and non-concordant reads, and those with more than 10 bases being soft-clipped in either end from either read
-#samtools view -F4 -q255 bowtie2.bam |awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
-#((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' >> uniq.sam
-#samtools view -F4 bowtie2.bam |awk '{if ($5<255) print }' | awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
-#((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' >> multi.sam
+samtools view -F4 -q255 bowtie2.bam |awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
+((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' >> uniq.sam
+samtools view -F4 bowtie2.bam |awk '{if ($5<255) print }' | awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
+((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' >> multi.sam
 
 #8 Combine Pass1 and Pass2, process the protein reads, sense protein reads, and calculate RNAseqmatrix, intersect tRNA reads
 cd "$Samplefolder/Combined/"
-#cat ../Hisat/multi.sam ../Bowtie/multi.sam > multi.sam
-#Rscript $WORK/pipeline/multi_map_process.R multi.sam multi_filtered.sam
-#cat ../Hisat/header.sam ../Hisat/uniq.sam ../Bowtie/uniq.sam multi_filtered.sam > primary.sam
-#samtools view -@24 -bS primary.sam > primary.bam
-#samtools sort -n -@ 24 primary.bam temp
-#mv temp.bam primary.bam
+cat ../Hisat/multi.sam ../Bowtie/multi.sam > multi.sam
+Rscript /home1/02727/cdw2854/tgirt_benchmark/pipelines/yaojun_pipeline/multi_map_process.R multi.sam multi_filtered.sam
+cat ../Hisat/header.sam ../Hisat/uniq.sam ../Bowtie/uniq.sam multi_filtered.sam > primary.sam
+samtools view -@24 -bS primary.sam > primary.bam
+samtools sort -n -@ 24 -O bam -T temp  primary.bam > temp.bam
+mv temp.bam primary.bam
 
-#bedtools pairtobed -s -f 0.5 -abam primary.bam -b $REF/GRCh38/Bed_for_counts_only/tRNA.bed > ../tRNA/tRNA_primary.bam
-#bedtools pairtobed -s -f 0.5 -abam primary.bam -b $REF/GRCh38/Bed_for_counts_only/rRNA.bed > ../rRNA/rRNA_primary.bam
-#bedtools pairtobed -s -f 0.5 -abam primary.bam -b $REF/GRCh38/Bed_for_counts_only/sncRNA_no_tRNA.bed > sncRNA.bam
-#bedtools pairtobed -s -f 0.5 -type neither -abam primary.bam -b $REF/GRCh38/Bed_for_counts_only/sncRNA_rRNA.bed > primary_no_sncRNA_tRNA_rRNA.bam
+bedtools pairtobed -s -f 0.01 -abam primary.bam -b $REF/GRCh38/Bed_for_counts_only/tRNA.bed > ../tRNA/tRNA_primary.bam
+bedtools pairtobed -s -f 0.01 -abam primary.bam -b $REF/GRCh38/Bed_for_counts_only/rRNA_for_bam_filter.bed > ../rRNA/rRNA_primary.bam
+bedtools pairtobed -s -f 0.01 -abam primary.bam -b $REF/GRCh38/Bed_for_counts_only/sncRNA_no_tRNA.bed > sncRNA.bam
+bedtools pairtobed -s -f 0.01 -type neither -abam primary.bam -b $REF/GRCh38/Bed_for_counts_only/sncRNA_rRNA_for_bam_filter.bed > primary_no_sncRNA_tRNA_rRNA.bam
 bedtools pairtobed -abam primary_no_sncRNA_tRNA_rRNA.bam -b $REF/GRCh38/Bed_for_counts_only/protein.bed > protein.bam
 mkdir -p temp
 cd temp
@@ -165,13 +161,13 @@ samtools view -@ 24 -bF64 ../protein.bam > R2.bam
 samtools view -@ 24 -bf64 ../protein.bam > R1.bam
 bedtools intersect -s -wa -a R1.bam -b $REF/GRCh38/Bed_for_counts_only/protein.bed > R1_1.bam
 bedtools intersect -S -wa -a R2.bam -b $REF/GRCh38/Bed_for_counts_only/protein.bed > R2_1.bam
-bedtools intersect -s -bed -v -f 0.5 -wa -a R1_1.bam -b $REF/GRCh38/Bed_for_counts_only/sncRNA_x_protein.bed |cut -f 4|cut -f 1 -d "/" > R1.id
-bedtools intersect -S -bed -v -f 0.5 -wa -a R2_1.bam -b $REF/GRCh38/Bed_for_counts_only/sncRNA_x_protein.bed |cut -f 4|cut -f 1 -d "/" > R2.id
+bedtools intersect -s -bed -v -f 0.01 -wa -a R1_1.bam -b $REF/GRCh38/Bed_for_counts_only/sncRNA_x_protein.bed |cut -f 4|cut -f 1 -d "/" > R1.id
+bedtools intersect -S -bed -v -f 0.01 -wa -a R2_1.bam -b $REF/GRCh38/Bed_for_counts_only/sncRNA_x_protein.bed |cut -f 4|cut -f 1 -d "/" > R2.id
 cat R1.id R2.id |sort -u > id.txt
-java -jar -Xmx12G $WORK/local/bin/FilterSamReads.jar INPUT=../protein.bam FILTER=includeReadList READ_LIST_FILE=id.txt OUTPUT=../protein.sense.bam WRITE_READS_FILES=false SORT_ORDER=unsorted
+picard FilterSamReads INPUT=../protein.bam FILTER=includeReadList READ_LIST_FILE=id.txt OUTPUT=../protein.sense.bam WRITE_READS_FILES=false SORT_ORDER=unsorted
 cd ..
 rm -r temp
-samtools sort -@ 24 protein.sense.bam temp
+samtools sort -@ 24 -T temp -O bam protein.sense.bam > temp.bam
 mv temp.bam protein.sense.bam
 
 bedtools bamtobed -mate1 -bedpe -i sncRNA.bam > sncRNA.bedpe
@@ -256,4 +252,4 @@ cd "$Samplefolder/Bowtie/"
 rm *.sam
 cd "$Samplefolder/Combined/"
 rm *.sam
-java -jar -Xmx12G $WORK/local/bin/CollectRnaSeqMetrics.jar REF_FLAT=$REF/GRCh38/hg38_rDNA/hg38.refflat STRAND_SPECIFICITY=NONE MINIMUM_LENGTH=20 INPUT=protein.sense.bam OUTPUT=RnaSeq.Metrics REFERENCE_SEQUENCE="$Bowtie.fa" ASSUME_SORTED=false
+picard CollectRnaSeqMetrics REF_FLAT=$REF/GRCh38/hg38_rDNA/hg38.refflat STRAND_SPECIFICITY=NONE MINIMUM_LENGTH=20 INPUT=protein.sense.bam OUTPUT=RnaSeq.Metrics REFERENCE_SEQUENCE="$Bowtie.fa" ASSUME_SORTED=false
