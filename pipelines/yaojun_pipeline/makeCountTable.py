@@ -7,25 +7,12 @@ import glob
 from functools import partial
 from multiprocessing import Pool
 
-def readrRNACount(count_file_name):
-    rDNA_genes = pd.DataFrame({'id':['gi|23898|emb|X12811.1|','gi|555853|gb|U13369.1|HSU13369'],
-                                'type':['rRNA','rRNA'],
-                                'name': ['5S_rRNA','rRNA_cluster']})
-    return pd.read_table(count_file_name,names=['id','count']) \
-            .merge(rDNA_genes, on = 'id', how='inner') 
-
-def readGenes(count_file_name):
-    return pd.read_table(count_file_name,names = ['name','type','id','count'])
-
 def readDF(count_file_name):
-    if 'rRNA' in count_file_name:
-        return readrRNACount(count_file_name)
-    elif 'tRNA' in count_file_name:
-        return pd.read_table(count_file_name,names=['id','count']) \
-                .assign(type = 'tRNA') \
-                .assign(name = lambda d: d['id'])
-    else:
-        return readGenes(count_file_name)
+    df = pd.read_table(count_file_name, header=None)  \
+        .pipe(lambda d: d[[3,6,7,8]])
+    df.columns = ['name','type','id','count']
+    return df
+
 
 def readSample(count_file_path, sample_id):    
     print 'Running %s' %sample_id
@@ -36,9 +23,8 @@ def readSample(count_file_path, sample_id):
     return df
 
 def main():
-    work = os.environ['WORK']
-    ref_path = os.environ['REF']
-    count_file_path = '/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/mergeBam/countFiles'
+    work = os.environ['SCRATCH']
+    count_file_path = work + '/bench_marking/genome_mapping/RAW'
     count_files = glob.glob(count_file_path + '/*counts')
     sample_ids = set(map(lambda x: x.split('/')[-1].split('.')[0], count_files))
     dfFunc = partial(readSample, count_file_path)
