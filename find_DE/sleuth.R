@@ -7,6 +7,7 @@ library(readr)
 library(stringr)
 library(purrr)
 library(dplyr)
+library(feather)
 
 # read gene table
 gene_file <- '/stor/work/Lambowitz/ref/GRCh38/transcripts.tsv' %>%
@@ -31,6 +32,7 @@ count_files_df <- list.files(project_path) %>%
 
 run_sleuth_DE <- function(sample_regex){
     mixes <- str_split(sample_regex,'\\|')[[1]]
+    test <- str_c('sample_mix',mixes[2])
     so <- count_files_df %>%
         filter(grepl(sample_regex, sample_mix)) %>%
         sleuth_prep( ~ sample_mix, 
@@ -38,14 +40,20 @@ run_sleuth_DE <- function(sample_regex){
                      aggregation_column = 'gene_id') %>%
         sleuth_fit() %>%
         sleuth_fit(~1, 'reduced') %>%
-        sleuth_lrt('reduced', 'full') %>%
-        sleuth_results('reduced:full', test_type = 'lrt')
+        sleuth_wt(test, 'full') %>%
+        sleuth_results(test =test) %>%
         dplyr::rename(gene_id=target_id) %>%
         mutate(sample_base = mixes[1]) %>% 
         mutate(sample_test = mixes[2]) %>%
-        inner_join(gene_name , by = 'gene_id')
+        inner_join(gene_name , by = 'gene_id')  %>%
+        mutate(b = log2(exp(b))) %>%
+        tbl_df
     return(so)
 }
 
 sleuth_AB <- run_sleuth_DE('A|B')
 sleuth_CD <- run_sleuth_DE('C|D')
+df <- rbind(sleuth_AB, sleuth_CD)
+out_file <- str_c(project_path,'/sleuth_results.feather')
+write_feather(df, out_file)
+message('Written ', out_file)
