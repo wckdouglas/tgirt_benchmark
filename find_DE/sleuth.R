@@ -1,6 +1,5 @@
 #!/usr/bin/env Rscript
 
-
 options(mc.cores = 12)
 library(sleuth)
 library(readr)
