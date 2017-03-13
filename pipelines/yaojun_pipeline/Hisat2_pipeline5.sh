@@ -164,7 +164,7 @@ bedtools intersect -S -wa -a R2.bam -b $REF/GRCh38/Bed_for_counts_only/protein.b
 bedtools intersect -s -bed -v -f 0.01 -wa -a R1_1.bam -b $REF/GRCh38/Bed_for_counts_only/sncRNA_x_protein.bed |cut -f 4|cut -f 1 -d "/" > R1.id
 bedtools intersect -S -bed -v -f 0.01 -wa -a R2_1.bam -b $REF/GRCh38/Bed_for_counts_only/sncRNA_x_protein.bed |cut -f 4|cut -f 1 -d "/" > R2.id
 cat R1.id R2.id |sort -u > id.txt
-picard FilterSamReads INPUT=../protein.bam FILTER=includeReadList READ_LIST_FILE=id.txt OUTPUT=../protein.sense.bam WRITE_READS_FILES=false SORT_ORDER=unsorted
+#picard FilterSamReads INPUT=../protein.bam FILTER=includeReadList READ_LIST_FILE=id.txt OUTPUT=../protein.sense.bam WRITE_READS_FILES=false SORT_ORDER=unsorted
 cd ..
 rm -r temp
 samtools sort -@ 24 -T temp -O bam protein.sense.bam > temp.bam
@@ -252,4 +252,4 @@ cd "$Samplefolder/Bowtie/"
 rm *.sam
 cd "$Samplefolder/Combined/"
 rm *.sam
-picard CollectRnaSeqMetrics REF_FLAT=$REF/GRCh38/hg38_rDNA/hg38.refflat STRAND_SPECIFICITY=NONE MINIMUM_LENGTH=20 INPUT=protein.sense.bam OUTPUT=RnaSeq.Metrics REFERENCE_SEQUENCE="$Bowtie.fa" ASSUME_SORTED=false
+#picard CollectRnaSeqMetrics REF_FLAT=$REF/GRCh38/hg38_rDNA/hg38.refflat STRAND_SPECIFICITY=NONE MINIMUM_LENGTH=20 INPUT=protein.sense.bam OUTPUT=RnaSeq.Metrics REFERENCE_SEQUENCE="$Bowtie.fa" ASSUME_SORTED=false
