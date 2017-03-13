@@ -21,7 +21,6 @@
 #                 |                         |-----rRNA
 # 		  |-----Counts-----RAW
 # 		             |-----Simple
-# 		             |-----Over10
 # 		             |-----tRNA_RAW
 # 		             |-----tRNA_anti
 Workfolder=$1
@@ -45,7 +44,6 @@ if [ ! -d "$Workfolder" ] ; then
 	mkdir "$Samplefolder/rRNA"
 	mkdir -p "$Countsfolder/RAW"
 	mkdir "$Countsfolder/Simple"
-	mkdir "$Countsfolder/Over10"
 	mkdir "$Countsfolder/tRNA_RAW"
 	mkdir "$Countsfolder/tRNA_anti"
 else
@@ -75,7 +73,6 @@ else
 	if [ ! -d "$Countsfolder" ] ; then
 		mkdir -p "$Countsfolder/RAW"
 		mkdir "$Countsfolder/Simple"
-		mkdir "$Countsfolder/Over10"
 		mkdir "$Countsfolder/tRNA_RAW"
 		mkdir "$Countsfolder/tRNA_anti"
 	else
@@ -84,9 +81,6 @@ else
 		fi
 		if [ ! -d "$Countsfolder/Simple" ] ; then
 			mkdir "$Countsfolder/Simple"
-		fi
-		if [ ! -d "$Countsfolder/Over10" ] ; then
-			mkdir "$Countsfolder/Over10"
 		fi
 		if [ ! -d "$Countsfolder/tRNA_RAW" ] ; then
 			mkdir "$Countsfolder/tRNA_RAW"
@@ -101,14 +95,14 @@ else
 fi
 
 #2 Start adapt trimming, 
-file="$RAWfolder/$Sample*.gz"
+file="$RAWfolder/$Sample*.fastq.gz"
 file1=$(echo $file|cut -f 1 -d " ")
 file2=$(echo $file|cut -f 2 -d " ")
 num_of_file=$(ls $file|wc -l)
 if [ $num_of_file != 2 ];then echo "More than 2 files share the same sample name, make sure the name is uniq and you have PE reads"; exit 1;fi
 trimed1="$Trimfolder/$Sample.1.fq.gz"
 trimed2="$Trimfolder/$Sample.2.fq.gz"
-cutadapt -m 15 -O 5 -n 3 -q 20 -b AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC  -B TGATCGTCGGACTGTAGAACTCTGAACGTGTAGA -o $trimed1 -p $trimed2 $file1 $file2
+cutadapt -m 15 -O 5 -n 3 -q 20 -b AAGATCGGAAGAGCACACGTCTGAACTCCAGTCAC  -B GATCGTCGGACTGTAGAACTCTGAACGTGTAGA -o $trimed1 -p $trimed2 $file1 $file2
 
 #3 Hisat2 mapping, Pass1
 hisat2 -p 24 -k 10 --no-mixed --no-discordant --known-splicesite-infile $Splicesite --novel-splicesite-outfile "$Samplefolder/Hisat/novelsite.txt" -x $Ref -1 $trimed1 -2 $trimed2 |samtools view -bS - > "$Samplefolder/Hisat/hisat.bam"
@@ -144,10 +138,10 @@ samtools view -F4 bowtie2.bam |awk '{if ($5<255) print }' | awk '{CIGAR1=$6;L1=$
 #8 Combine Pass1 and Pass2, process the protein reads, sense protein reads, and calculate RNAseqmatrix, intersect tRNA reads
 cd "$Samplefolder/Combined/"
 cat ../Hisat/multi.sam ../Bowtie/multi.sam > multi.sam
-Rscript /home1/02727/cdw2854/tgirt_benchmark/pipelines/yaojun_pipeline/multi_map_process.R multi.sam multi_filtered.sam
+Rscript  /home1/02727/cdw2854/tgirt_benchmark/pipelines/yaojun_pipeline/multi_map_process.R multi.sam multi_filtered.sam
 cat ../Hisat/header.sam ../Hisat/uniq.sam ../Bowtie/uniq.sam multi_filtered.sam > primary.sam
 samtools view -@24 -bS primary.sam > primary.bam
-samtools sort -n -@ 24 -O bam -T temp  primary.bam > temp.bam
+samtools sort -n -@ 24 -O bam -T temp primary.bam > temp.bam
 mv temp.bam primary.bam
 
 bedtools pairtobed -s -f 0.01 -abam primary.bam -b $REF/GRCh38/Bed_for_counts_only/tRNA.bed > ../tRNA/tRNA_primary.bam
@@ -167,7 +161,7 @@ cat R1.id R2.id |sort -u > id.txt
 #picard FilterSamReads INPUT=../protein.bam FILTER=includeReadList READ_LIST_FILE=id.txt OUTPUT=../protein.sense.bam WRITE_READS_FILES=false SORT_ORDER=unsorted
 cd ..
 rm -r temp
-samtools sort -@ 24 -T temp -O bam protein.sense.bam > temp.bam
+samtools sort -@ 24 -O bam -T temp protein.sense.bam > temp.bam
 mv temp.bam protein.sense.bam
 
 bedtools bamtobed -mate1 -bedpe -i sncRNA.bam > sncRNA.bedpe
@@ -242,9 +236,17 @@ sed -i 's/Mt_protein_coding/Mt/g' $Sample.s.counts
 sed -i 's/trans.*pseudogene/pseudogene/g' $Sample.s.counts
 sed -i 's/un.*pseudogene/pseudogene/g' $Sample.s.counts
 sed -i 's/p.*pseudogene/pseudogene/g' $Sample.s.counts
+awk '{if (($7=="misc_RNA")&&($6~/Y_RNA|RNY/)) print $1,$2,$3,$4,$5,$6,"YRNA",$8;else print $1,$2,$3,$4,$5,$6,$7,$8}' FS=\\t OFS=\\t $Sample.s.counts > temp.txt
+mv temp.txt $Sample.s.counts
+awk '{if (($7=="misc_RNA")&&($6~/VTRNA|Vault/)) print $1,$2,$3,$4,$5,$6,"VTRNA",$8;else print $1,$2,$3,$4,$5,$6,$7,$8}' FS=\\t OFS=\\t $Sample.s.counts > temp.txt
+mv temp.txt $Sample.s.counts
+awk '{if (($7=="misc_RNA")&&($6~/7SL|SRP/)) print $1,$2,$3,$4,$5,$6,"7SL",$8;else print $1,$2,$3,$4,$5,$6,$7,$8}' FS=\\t OFS=\\t $Sample.s.counts > temp.txt
+mv temp.txt $Sample.s.counts
+awk '{if (($7=="misc_RNA")&&($6~/7SK/)) print $1,$2,$3,$4,$5,$6,"7SK",$8;else print $1,$2,$3,$4,$5,$6,$7,$8}' FS=\\t OFS=\\t $Sample.s.counts > temp.txt
+mv temp.txt $Sample.s.counts
 sort -k 7,7d -k 1,1d $Sample.s.counts > $Sample.ver2.s.counts
 mv $Sample.ver2.s.counts $Sample.s.counts
-sort -k 7,7d -k 8,8nr $Sample.s.counts | awk '{if ($8 >= 10) print $0}' OFS=\\t FS=\\t  > ../Over10/$Sample.over10.s.counts
+
 
 cd "$Samplefolder/Hisat/"
 rm *.sam
