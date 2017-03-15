@@ -29,7 +29,11 @@ def readSample(count_file_path, tRNA_count_path, sample_id):
 
 def main():
     work = os.environ['SCRATCH']
+<<<<<<< HEAD
     count_path = work + '/bench_marking/genome_mapping/pipeline7_counts'
+=======
+    count_path = work + '/bench_marking/genome_mapping'
+>>>>>>> b778b8c9258c05ef2fee504c3da6ff50ae02676e
     count_file_path = count_path + '/RAW'
     tRNA_count_path = count_path + '/tRNA_anti'
     count_files = glob.glob(count_file_path + '/*counts')
@@ -37,7 +41,10 @@ def main():
     dfFunc = partial(readSample, count_file_path, tRNA_count_path)
     dfs = Pool(12).map(dfFunc, sample_ids)
     df = pd.concat(dfs, axis=0) \
+<<<<<<< HEAD
         .query('sample_name != "try"') \
+=======
+>>>>>>> b778b8c9258c05ef2fee504c3da6ff50ae02676e
         .pipe(pd.pivot_table,index = ['id'],  
             values = 'count' , columns = ['sample_name']) \
         .reset_index()\
