@@ -13,24 +13,32 @@ def readDF(count_file_name):
     df.columns = ['name','type','id','count']
     return df
 
+def read_tRNA(count_file_name):
+    df = pd.read_table(count_file_name, names= ['id','count']) 
+    return df
 
-def readSample(count_file_path, sample_id):    
+
+def readSample(count_file_path, tRNA_count_path, sample_id):    
     print 'Running %s' %sample_id
-    count_files = glob.glob(count_file_path + '/' + sample_id + '*counts')
-    dfs = map(readDF,count_files)
-    df = pd.concat(dfs, axis= 0)\
+    df = readDF(count_file_path + '/' + sample_id + '.counts') \
+        .pipe(lambda d: d[['id','count']])
+    tRNA_df = read_tRNA(tRNA_count_path + '/' + sample_id + '.anti')
+    df = pd.concat([df, tRNA_df],axis=0) \
         .assign(sample_name = sample_id.replace('-','_'))
     return df
 
 def main():
     work = os.environ['SCRATCH']
-    count_file_path = work + '/bench_marking/genome_mapping/RAW'
+    count_path = work + '/bench_marking/genome_mapping/pipeline7_counts'
+    count_file_path = count_path + '/RAW'
+    tRNA_count_path = count_path + '/tRNA_anti'
     count_files = glob.glob(count_file_path + '/*counts')
     sample_ids = set(map(lambda x: x.split('/')[-1].split('.')[0], count_files))
-    dfFunc = partial(readSample, count_file_path)
+    dfFunc = partial(readSample, count_file_path, tRNA_count_path)
     dfs = Pool(12).map(dfFunc, sample_ids)
     df = pd.concat(dfs, axis=0) \
-        .pipe(pd.pivot_table,index = ['id','name','type'],  
+        .query('sample_name != "try"') \
+        .pipe(pd.pivot_table,index = ['id'],  
             values = 'count' , columns = ['sample_name']) \
         .reset_index()\
         .fillna(0)
