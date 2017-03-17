@@ -1,5 +1,7 @@
 #!/usr/bin/env Rscript
 
+library("BiocParallel")
+register(MulticoreParam(12))
 library(DESeq2)
 library(cowplot)
 library(feather)
@@ -29,8 +31,8 @@ fitDESeq <-  function(df){
         DESeq() %>%
         results() %>%
         data.frame  %>%
-        select(log2FoldChange,padj,baseMean) %>%
-        setNames(paste(c('logFC','adj.P.Val','AveExpr'), 
+        select(log2FoldChange,padj,baseMean,pvalue) %>%
+        setNames(paste(c('logFC','adj.P.Val','AveExpr','P.Val'), 
                  paste(unique(sdf$biosample),collapse = ''),sep='_')) %>%
         rownames_to_column(var = "id") %>%
         tbl_df
@@ -50,8 +52,9 @@ rename_ryan <- function(column_name){
 # read files
 project_path <- '/stor/scratch/Lambowitz/cdw2854/bench_marking'
 genome_df <- project_path %>%
-    str_c('/genome_mapping/RAW/combined_gene_count.tsv') %>%
-    read_tsv()
+    str_c('/genome_mapping/pipeline7_counts/RAW/combined_gene_count.tsv') %>%
+    read_tsv() 
+#genome_df[genome_df<10] <- 0
 
 ryan_df <- '/stor/work/Lambowitz/Data/archived_work/TGIRT_ERCC_project/result/countTables' %>%
     str_c('countsData.tsv', sep='/') %>%
@@ -64,6 +67,7 @@ ryan_df <- '/stor/work/Lambowitz/Data/archived_work/TGIRT_ERCC_project/result/co
     summarise_all(sum) %>%
     ungroup() %>%
     tbl_df
+#ryan_df[ryan_df<10] <- 0
     
 # ================ Make sample table ===================
 g_AB <- selectSample(genome_df, 'A|B')
@@ -77,5 +81,8 @@ ryan_deseq_fc_df <- inner_join(fitDESeq(ryan_AB), fitDESeq(ryan_CD)) %>%
     mutate(map_type = 'W/o multimap') 
 df <- deseq_fc_df %>%
     rbind(ryan_deseq_fc_df)
-out_table <- str_c(project_path,'/genome_mapping/deseq_genome.feather',sep='/')
+out_table <- str_c(project_path,'/genome_mapping/pipeline7_counts/deseq_genome.feather',sep='/')
 write_feather(df, out_table)
+
+
+

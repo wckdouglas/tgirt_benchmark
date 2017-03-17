@@ -12,3 +12,4 @@ for ANTI in $(echo $ANTICODON)
 do
 	echo $ANTI
 done | awk '{print $1,$1,$1,"tRNA"}' OFS='\t' >> $OUT_FILE
+awk '{print $1,$1,$1,$7}' OFS='\t' /stor/work/Lambowitz/ref/RNASeqConsortium/ercc/ercc.bed >> $OUT_FILE

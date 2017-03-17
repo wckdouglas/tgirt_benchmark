@@ -23,12 +23,13 @@ alignment_free_df <- project_path %>%
     read_feather() %>%
     mutate(logFC = -b) %>%
     dplyr::rename(id = gene_id) %>%
-    select(id,sample_base,sample_test, name,type,qval, mean_obs, logFC) %>%
+    select(id,sample_base,sample_test, name,type,qval, mean_obs, logFC, pval) %>%
     gather(variable, value, -id,-name,-type,-sample_base,-sample_test) %>%
     mutate(variable = case_when(
                     .$variable == 'qval' ~ 'adj.P.Val',
                     .$variable == 'mean_obs' ~ 'AveExpr',
-                    .$variable == 'logFC' ~ 'logFC'
+                    .$variable == 'logFC' ~ 'logFC',
+                    .$variable == 'pval' ~ 'P.Val'
     ))  %>%
     mutate(variable = str_c(variable,'_', sample_base, sample_test)) %>%
     select(-sample_base,-sample_test) %>%
@@ -37,7 +38,7 @@ alignment_free_df <- project_path %>%
     mutate(map_type = 'Kallisto')
 
 genome_df <- project_path %>%
-    str_c('/genome_mapping/deseq_genome.feather') %>%
+    str_c('/genome_mapping/pipeline7_counts/deseq_genome.feather') %>%
     read_feather() %>%
     tbl_df
 
@@ -70,6 +71,11 @@ fc_df <- genome_df %>%
     mutate(error = logFC_CD - predict) %>% 
     ungroup() %>%
     mutate(analytic_type = ifelse(grepl('multimap',map_type),'Genome Mapping','Alignment-free')) %>%
+    inner_join(gene_file %>% 
+                   dplyr::rename(id=gene_id) %>% 
+                   select(id,name,type) %>% 
+                   unique,
+               by = 'id') %>%
     tbl_df
     
 quantil_table <- fc_df %>% 
@@ -78,7 +84,7 @@ quantil_table <- fc_df %>%
     ungroup()
 
 fc_df <- fc_df %>% 
-    inner_join(quantil_table) %>% 
+    inner_join(quantil_table, by = c("map_type", "analytic_type")) %>% 
     mutate(labeling = case_when(
                         .$AveExpr_AB > .$`X99.` ~ 'Top 1%', 
                         .$AveExpr_AB > .$`X90.` ~ 'Top 10%',
@@ -87,10 +93,15 @@ fc_df <- fc_df %>%
     tbl_df
 
 rsquare <- fc_df %>%
-    group_by(map_type,analytic_type)%>%#,slope) %>%
+    ungroup()%>%
+    group_by(map_type,analytic_type, labeling)%>%#,slope) %>%
     summarize(rs = 1 - sum(error^2)/sum((logFC_CD - mean(logFC_CD))^2),
               samplesize=n()) %>%
-    mutate(ypos = 1:(nrow(.)/2))
+    mutate(ypos = 1) %>%
+    mutate(ypos = cumsum(ypos)) %>%
+    ungroup() %>%
+    mutate(rs = formatC(round(rs,3), format='f',digits=3)) %>%
+    tbl_df
 
 colors <- c('gray','salmon','light blue', 'goldenrod1')
 p <- ggplot() + 
@@ -100,10 +111,12 @@ p <- ggplot() +
     facet_grid(.~analytic_type+map_type) +
     xlim(-10,10) +
     ylim(-2,2) +
-    geom_text(x = 7, y = -1.5, data = rsquare, 
-              aes(label = paste0('R^2: ',signif(rs,3))), parse=T) +
-    geom_text(x = 7, y = -1.75, data = rsquare, 
-              aes(label = paste0('n = ',samplesize))) +
+    geom_text(x = -7, data = rsquare, 
+              aes(y=2-ypos/5, 
+                  label = paste0('R^2: ',as.character(rs)), 
+                  color = labeling), parse=T) +
+    geom_text(x = 7, data = rsquare, 
+              aes(y=0-ypos/5,label = paste0('n = ',samplesize), color = labeling)) +
     geom_line(data = fc_df, aes(x = logFC_AB, y = predict), color ='red') +
     geom_line(data = fc_df, aes(x = logFC_AB, y = upper_error), color ='red') +
     geom_line(data = fc_df, aes(x = logFC_AB, y = lower_error), color ='red') +
@@ -158,16 +171,53 @@ type_p <- ggplot() +
     facet_grid(.~analytic_type+map_type) +
     xlim(-10,10) +
     ylim(-2,2) +
-    geom_text(x = 7, y = -1.5, data = rsquare, 
-              aes(label = paste0('R^2: ',signif(rs,3))), parse=T) +
-    geom_text(x = 7, y = -1.75, data = rsquare, 
-              aes(label = paste0('n = ',samplesize))) +
     geom_line(data = fc_df, aes(x = logFC_AB, y = predict), color ='red') +
     scale_color_manual(values = colors_type) +
     scale_alpha_manual(values = c(0.1,1,1,1), guide=F) +
     panel_border()
-p <- plot_grid(p,type_p,ncol=1,align='v')
+p <- plot_grid(p,type_p,
+               p +
+                    ggrepel::geom_label_repel(data = fc_df %>% 
+                                  filter(labeling %in% c('Top 1%','Top 10%')) %>% 
+                                  group_by(labeling, analytic_type, map_type) %>%
+                                  top_n(5,error),
+                              aes(x=logFC_AB, y = logFC_CD, label = name)),
+               ncol=1,align='v')
 figurepath <- str_c(project_path, '/figures')
 figurename <- str_c(figurepath, '/fold_change.png')
-save_plot(p , file=figurename,  base_width=14, base_height=9) 
+save_plot(p , file=figurename,  base_width=14, base_height=14) 
+message('Saved: ', figurename)
+
+
+sig_DE_df <- fc_df %>% 
+    filter(adj.P.Val_AB<0.05) %>% 
+    mutate(map_type =  make.names(str_c(analytic_type, '_',map_type))) %>%
+    select(map_type, adj.P.Val_AB, id) %>%
+    spread(map_type, adj.P.Val_AB) %>%
+    tbl_df
+
+sig_scatter <- GGally::ggpairs(sig_DE_df, 2:4)
+
+per_type_r2_df <- fc_type_df  %>% 
+    group_by(type,map_type,analytic_type) %>%     
+    summarize(rs = 1 - sum(error^2)/sum((logFC_CD - mean(logFC_CD))^2),
+            rmse = sqrt(mean(error^2)),
+            samplesize=n()) %>%
+    ungroup() %>%
+    mutate(prep = str_c(analytic_type, map_type,sep='\n')) %>%
+    tbl_df
+rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)), 
+       aes(x=prep,y=rmse, fill=prep)) + 
+    geom_bar(stat='identity') +
+    geom_text(aes(label = samplesize), size=5, vjust=0,angle=0)+
+    facet_wrap(~type) +
+    labs(color = ' ', fill= ' ', x= ' ', y = 'Root mean square error', parse=T) +
+    panel_border()+
+    theme(axis.text.x=element_blank())+
+    theme(axis.ticks.x=element_blank())+
+    theme(legend.key.height = unit(2,'line')) +
+    theme(legend.position = c(0.9,0.2))
+figurepath <- str_c(project_path, '/figures')
+figurename <- str_c(figurepath, '/rmse_type_figure.png')
+save_plot(rmse_type_p, file=figurename,  base_width=14, base_height=14) 
 message('Saved: ', figurename)
