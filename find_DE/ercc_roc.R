@@ -118,3 +118,7 @@ roc_p <- ggplot(data=roc_df, aes(x = FPR, y = TPR, color = map_type)) +
 
 
 p <- plot_grid(ercc_de_p, roc_p, ncol=1)
+figurepath <- str_c(project_path, '/figures')
+figurename <- str_c(figurepath, '/ercc_roc.png')
+save_plot(p, file=figurename,  base_width=10, base_height=10) 
+message('Saved: ', figurename)
