@@ -95,8 +95,12 @@ fc_df <- fc_df %>%
 rsquare <- fc_df %>%
     ungroup()%>%
     group_by(map_type,analytic_type, labeling)%>%#,slope) %>%
-    summarize(rs = 1 - sum(error^2)/sum((logFC_CD - mean(logFC_CD))^2),
-              samplesize=n()) %>%
+    summarize(
+        sum_err = sum(error^2),
+        sum_var = sum((logFC_CD - mean(logFC_CD))^2),
+        samplesize=n()
+    ) %>%
+    mutate(rs =  1 - sum_err/sum_var) %>%
     mutate(ypos = 1) %>%
     mutate(ypos = cumsum(ypos)) %>%
     ungroup() %>%
@@ -104,7 +108,7 @@ rsquare <- fc_df %>%
     tbl_df
 
 colors <- c('gray','salmon','light blue', 'goldenrod1')
-p <- ggplot() + 
+s_p <- ggplot() + 
     geom_point(data = fc_df %>% arrange(AveExpr_AB),# %>% filter(grepl('^TR|tR|[ACTG]{3}$',id)), 
                aes(color = labeling,x=logFC_AB, y = logFC_CD, alpha=labeling))  + 
     labs(x = 'log(fold change AB)', y = 'log(fold change CD)', color = ' ') +
@@ -200,7 +204,7 @@ sig_scatter <- GGally::ggpairs(sig_DE_df, 2:4)
 
 per_type_r2_df <- fc_type_df  %>% 
     group_by(type,map_type,analytic_type) %>%     
-    summarize(rs = 1 - sum(error^2)/sum((logFC_CD - mean(logFC_CD))^2),
+    summarize(
             rmse = sqrt(mean(error^2)),
             samplesize=n()) %>%
     ungroup() %>%
@@ -209,14 +213,16 @@ per_type_r2_df <- fc_type_df  %>%
 rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)), 
        aes(x=prep,y=rmse, fill=prep)) + 
     geom_bar(stat='identity') +
-    geom_text(aes(label = samplesize), size=5, vjust=0,angle=0)+
+    geom_text(aes(label = samplesize), size=5, vjust=-1,angle= 0)+
     facet_wrap(~type) +
     labs(color = ' ', fill= ' ', x= ' ', y = 'Root mean square error', parse=T) +
     panel_border()+
     theme(axis.text.x=element_blank())+
     theme(axis.ticks.x=element_blank())+
     theme(legend.key.height = unit(2,'line')) +
-    theme(legend.position = c(0.9,0.2))
+    theme(legend.position = c(0.9,0.2)) +
+    ylim(0,0.8)
+source('~/R/legend_to_color.R')
 figurepath <- str_c(project_path, '/figures')
 figurename <- str_c(figurepath, '/rmse_type_figure.png')
 save_plot(rmse_type_p, file=figurename,  base_width=14, base_height=14) 

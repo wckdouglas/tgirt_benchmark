@@ -18,9 +18,6 @@ selectSample <- function(d, pattern) {
 }
 
 fitDESeq <-  function(df){
-    sdf <- data_frame(samplenames = names(df)) %>%
-        separate(samplenames,c('sample','biosample','replicate'),sep='_') %>%
-        data.frame()
     col_data <- data.frame(samplenames = names(df)) %>% 
         mutate(annotation = str_sub(samplenames,8,8)) %>% 
         mutate(annotation =  factor(annotation,levels = rev(unique(annotation)))) 
@@ -33,7 +30,7 @@ fitDESeq <-  function(df){
         data.frame  %>%
         select(log2FoldChange,padj,baseMean,pvalue) %>%
         setNames(paste(c('logFC','adj.P.Val','AveExpr','P.Val'), 
-                 paste(unique(sdf$biosample),collapse = ''),sep='_')) %>%
+                 paste(unique(col_data$annotation),collapse = ''),sep='_')) %>%
         rownames_to_column(var = "id") %>%
         tbl_df
     return(de)
@@ -50,15 +47,27 @@ rename_ryan <- function(column_name){
 }
 
 # read files
+gene_file <- '/stor/work/Lambowitz/ref/GRCh38/transcripts.tsv' %>%
+    read_tsv()  %>%
+    dplyr::rename(id=gene_id) %>%
+    select(id, name, type) %>%
+    unique() %>%
+    tbl_df
+
+
 project_path <- '/stor/scratch/Lambowitz/cdw2854/bench_marking'
 genome_df <- project_path %>%
     str_c('/genome_mapping/pipeline7_counts/RAW/combined_gene_count.tsv') %>%
-    read_tsv() 
-#genome_df[genome_df<10] <- 0
+    read_tsv()  %>%
+    inner_join(gene_file) %>%
+    filter(type %in% c('ERCC')) %>%
+    select(-name,-type) %>%
+    tbl_df
 
-ryan_df <- '/stor/work/Lambowitz/Data/archived_work/TGIRT_ERCC_project/result/countTables' %>%
-    str_c('countsData.tsv', sep='/') %>%
+ryan_df <- project_path %>%
+    str_c('/genome_mapping/old_pipeline/countsData.tsv', sep='/') %>%
     read_tsv() %>%
+    filter(type %in% c('ERCC')) %>%
     select(grep('ref|id|type|name', names(.)))  %>%
     set_names(sapply(names(.),rename_ryan)) %>%
     mutate(id = ifelse(type=='tRNA', str_replace(id,'[0-9]+',''),id)) %>%
@@ -67,7 +76,6 @@ ryan_df <- '/stor/work/Lambowitz/Data/archived_work/TGIRT_ERCC_project/result/co
     summarise_all(sum) %>%
     ungroup() %>%
     tbl_df
-#ryan_df[ryan_df<10] <- 0
     
 # ================ Make sample table ===================
 g_AB <- selectSample(genome_df, 'A|B')
@@ -77,11 +85,11 @@ ryan_CD <- selectSample(ryan_df,'C|D')
 
 deseq_fc_df <- inner_join(fitDESeq(g_AB), fitDESeq(g_CD)) %>%
     mutate(map_type = 'W/ multimap') 
-ryan_deseq_fc_df <- inner_join(fitDESeq(ryan_AB), fitDESeq(ryan_CD)) %>%
+ryan_deseq_fc_df <- inner_join(fitDESeq(ryan_AB), fitDESeq(ryan_CD),by='id') %>%
     mutate(map_type = 'W/o multimap') 
 df <- deseq_fc_df %>%
     rbind(ryan_deseq_fc_df)
-out_table <- str_c(project_path,'/genome_mapping/pipeline7_counts/deseq_genome.feather',sep='/')
+out_table <- str_c(project_path,'/genome_mapping/pipeline7_counts/deseq_genome_ercc.feather',sep='/')
 write_feather(df, out_table)
 
 

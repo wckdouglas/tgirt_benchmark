@@ -65,7 +65,8 @@ ercc_lm <- ggplot(data = lm_df, aes(x = log2(conc), y = log2(abundance))) +
     geom_point(alpha=0.6) +
     geom_smooth(method='lm', formula = formula) +
     ggpmisc::stat_poly_eq(formula = formula, parse = TRUE) +
-    facet_grid(group~prep)
+    facet_grid(group~prep)+
+    panel_border()
 
 r2_df <- lm_df %>%
     mutate(log2_abundance = log2(abundance)) %>%
@@ -85,3 +86,9 @@ ercc_r2 <- ggplot(data=r2_df, aes(x = prep, color=prep, y = r.squared, shape=gro
     ylim(0.9,1)
 
 p <- plot_grid(ercc_lm, ercc_r2, ncol=1)
+figurepath <- str_c(project_path, '/figures')
+figurename <- str_c(figurepath, '/ercc_figure.png')
+save_plot(p, file=figurename,  base_width=10, base_height=10) 
+message('Saved: ', figurename)
+
+
