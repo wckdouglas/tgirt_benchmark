@@ -3,7 +3,7 @@
 DATAPATH=${SCRATCH}/bench_marking/data
 INDEX_PATH=${REF}/human_transcriptome
 INDEX=${INDEX_PATH}/transcript_salmon
-RESULTPATH=${SCRATCH}/cdw2854/bench_marking/alignment_free/salmon
+RESULTPATH=${SCRATCH}/bench_marking/alignment_free/salmon
 COUNT_PATH=${RESULTPATH}/countFiles
 BAM_PATH=${RESULTPATH}/bamFiles
 THREADS=24
