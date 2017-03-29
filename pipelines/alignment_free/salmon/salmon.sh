@@ -23,6 +23,6 @@ do
 		--mates1 ${R1} --mates2 ${R2} \
 		--output $RESULTPATH/${SAMPLENAME} \
 		\| samtools view -b@ $THREADS \
-		\> ${RESULTPATH}/${SAMPLENAME}.sam
+		\> ${RESULTPATH}/${SAMPLENAME}.bam
 done
 
