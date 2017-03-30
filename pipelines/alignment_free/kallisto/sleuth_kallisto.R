@@ -19,7 +19,7 @@ gene_name <- gene_file %>%
     unique()
 
 # make sample dataframe
-project_path <- '/stor/scratch/Lambowitz/cdw2854/bench_marking/alignment_free/countFiles'
+project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/alignment_free/kallisto/countFiles'
 count_files_df <- list.files(project_path) %>%
     data.frame(sample_id = .) %>%
     filter(!grepl('.tsv$', sample_id)) %>%
@@ -53,6 +53,6 @@ run_sleuth_DE <- function(sample_regex){
 sleuth_AB <- run_sleuth_DE('A|B')
 sleuth_CD <- run_sleuth_DE('C|D')
 df <- rbind(sleuth_AB, sleuth_CD)
-out_file <- str_c(project_path,'/sleuth_results.feather')
+out_file <- str_c(project_path,'/kallisto_results.feather')
 write_feather(df, out_file)
 message('Written ', out_file)

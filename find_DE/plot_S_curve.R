@@ -37,6 +37,27 @@ alignment_free_df <- project_path %>%
     select(-name,-type) %>%
     mutate(map_type = 'Kallisto')
 
+project_path_salmon <- '/stor/work/Lambowitz/cdw2854/bench_marking/alignment_free/salmon'
+alignment_free_df <- project_path_salmon %>%
+    str_c('/salmon_results.feather') %>%
+    read_feather() %>%
+    mutate(logFC = -b) %>%
+    dplyr::rename(id = gene_id) %>%
+    select(id,sample_base,sample_test, name,type,qval, mean_obs, logFC, pval) %>%
+    gather(variable, value, -id,-name,-type,-sample_base,-sample_test) %>%
+    mutate(variable = case_when(
+        .$variable == 'qval' ~ 'adj.P.Val',
+        .$variable == 'mean_obs' ~ 'AveExpr',
+        .$variable == 'logFC' ~ 'logFC',
+        .$variable == 'pval' ~ 'P.Val'
+    ))  %>%
+    mutate(variable = str_c(variable,'_', sample_base, sample_test)) %>%
+    select(-sample_base,-sample_test) %>%
+    spread(variable, value)  %>%
+    select(-name,-type) %>%
+    mutate(map_type = 'Salmon') %>%
+    rbind(alignment_free_df)
+
 genome_df <- project_path %>%
     str_c('/genome_mapping/pipeline7_counts/deseq_genome.feather') %>%
     read_feather() %>%
@@ -179,8 +200,8 @@ type_p <- ggplot() +
     scale_color_manual(values = colors_type) +
     scale_alpha_manual(values = c(0.1,1,1,1), guide=F) +
     panel_border()
-p <- plot_grid(p,type_p,
-               p +
+p <- plot_grid(s_p,type_p,
+               s_p +
                     ggrepel::geom_label_repel(data = fc_df %>% 
                                   filter(labeling %in% c('Top 1%','Top 10%')) %>% 
                                   group_by(labeling, analytic_type, map_type) %>%
