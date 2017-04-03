@@ -18,7 +18,7 @@ curl https://tools.thermofisher.com/content/sfs/manuals/cms_095047.txt \
 	> $TRANSCRIPTOME/ercc.fa
 cat $TRANSCRIPTOME/ercc.fa \
    | seqkit fx2tab \
-   | awk '{print $1,0,length($2),$1,0,"+"}' OFS='\t' \
+   | awk '{print $1,0,length($2),$1,0,"+","ERCC",$1}' OFS='\t' \
    > $TRANSCRIPTOME/ercc.bed
 
 #Download ERCC
