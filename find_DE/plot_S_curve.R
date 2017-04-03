@@ -7,6 +7,7 @@ library(tibble)
 library(dplyr)
 library(broom)
 library(purrr)
+library(tidyr)
 library(cowplot)
 library(feather)
 
@@ -17,55 +18,36 @@ gene_file <- '/stor/work/Lambowitz/ref/GRCh38/transcripts.tsv' %>%
     tbl_df
 
 # read all tables ====================================================
-project_path <- '/stor/scratch/Lambowitz/cdw2854/bench_marking'
-alignment_free_df <- project_path %>%
-    str_c('/alignment_free/countFiles/sleuth_results.feather') %>%
+project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
+kallisto <- project_path %>%
+    str_c('/alignment_free/kallisto/kallisto_DESeq.feather') %>%
     read_feather() %>%
-    mutate(logFC = -b) %>%
-    dplyr::rename(id = gene_id) %>%
-    select(id,sample_base,sample_test, name,type,qval, mean_obs, logFC, pval) %>%
-    gather(variable, value, -id,-name,-type,-sample_base,-sample_test) %>%
-    mutate(variable = case_when(
-                    .$variable == 'qval' ~ 'adj.P.Val',
-                    .$variable == 'mean_obs' ~ 'AveExpr',
-                    .$variable == 'logFC' ~ 'logFC',
-                    .$variable == 'pval' ~ 'P.Val'
-    ))  %>%
-    mutate(variable = str_c(variable,'_', sample_base, sample_test)) %>%
-    select(-sample_base,-sample_test) %>%
-    spread(variable, value)  %>%
-    select(-name,-type) %>%
-    mutate(map_type = 'Kallisto')
+    mutate(map_type = 'Kallisto') %>%
+    tbl_df
 
-project_path_salmon <- '/stor/work/Lambowitz/cdw2854/bench_marking/alignment_free/salmon'
-alignment_free_df <- project_path_salmon %>%
-    str_c('/salmon_results.feather') %>%
+
+salmon <- project_path %>%
+    str_c('/alignment_free/salmon/salmon_DESeq.feather') %>%
     read_feather() %>%
-    mutate(logFC = -b) %>%
-    dplyr::rename(id = gene_id) %>%
-    select(id,sample_base,sample_test, name,type,qval, mean_obs, logFC, pval) %>%
-    gather(variable, value, -id,-name,-type,-sample_base,-sample_test) %>%
-    mutate(variable = case_when(
-        .$variable == 'qval' ~ 'adj.P.Val',
-        .$variable == 'mean_obs' ~ 'AveExpr',
-        .$variable == 'logFC' ~ 'logFC',
-        .$variable == 'pval' ~ 'P.Val'
-    ))  %>%
-    mutate(variable = str_c(variable,'_', sample_base, sample_test)) %>%
-    select(-sample_base,-sample_test) %>%
-    spread(variable, value)  %>%
-    select(-name,-type) %>%
     mutate(map_type = 'Salmon') %>%
-    rbind(alignment_free_df)
-
+    tbl_df
+ 
 genome_df <- project_path %>%
-    str_c('/genome_mapping/pipeline7_counts/deseq_genome.feather') %>%
+    str_c('/genome_mapping/pipeline7/deseq_genome.feather') %>%
     read_feather() %>%
     tbl_df
 
 #z <- 1.43`
-fc_df <- genome_df %>%
-    rbind(alignment_free_df) %>%
+fc_df <- list(kallisto, salmon, genome_df) %>%
+    purrr::reduce(rbind) %>%
+    mutate(comparison = str_replace(comparison, ' vs ','')) %>%
+    gather(variable, value, -id, -comparison,-map_type) %>%
+    filter(variable != 'lfcSE') %>%
+    mutate(variable = str_c(variable, comparison, sep='_')) %>%
+    select(-comparison) %>%
+    spread(variable, value) %>%
+    dplyr::rename(logFC_AB = log2FoldChange_AB) %>%
+    dplyr::rename(logFC_CD = log2FoldChange_CD) %>%
     filter(!is.na(logFC_AB)) %>%
     filter(!is.na(logFC_CD)) %>% 
     mutate(AB = 2^logFC_AB) %>%
@@ -101,16 +83,16 @@ fc_df <- genome_df %>%
     
 quantil_table <- fc_df %>% 
     group_by(map_type, analytic_type) %>% 
-    do(tidy(t(quantile(.$AveExpr_AB, c(.99,.9,.75)))) ) %>%
+    do(tidy(t(quantile(.$baseMean_AB, c(.99,.9,.75)))) ) %>%
     ungroup()
 
 fc_df <- fc_df %>% 
     inner_join(quantil_table, by = c("map_type", "analytic_type")) %>% 
     mutate(labeling = case_when(
-                        .$AveExpr_AB > .$`X99.` ~ 'Top 1%', 
-                        .$AveExpr_AB > .$`X90.` ~ 'Top 10%',
-                        .$AveExpr_AB > .$`X75.` ~ 'Top 25%',
-                        .$AveExpr_AB <= .$`X75.`~ 'Others'))  %>%
+                        .$baseMean_AB > .$`X99.` ~ 'Top 1%', 
+                        .$baseMean_AB > .$`X90.` ~ 'Top 10%',
+                        .$baseMean_AB > .$`X75.` ~ 'Top 25%',
+                        .$baseMean_AB <= .$`X75.`~ 'Others'))  %>%
     tbl_df
 
 rsquare <- fc_df %>%
@@ -130,7 +112,7 @@ rsquare <- fc_df %>%
 
 colors <- c('gray','salmon','light blue', 'goldenrod1')
 s_p <- ggplot() + 
-    geom_point(data = fc_df %>% arrange(AveExpr_AB),# %>% filter(grepl('^TR|tR|[ACTG]{3}$',id)), 
+    geom_point(data = fc_df %>% arrange(baseMean_AB),# %>% filter(grepl('^TR|tR|[ACTG]{3}$',id)), 
                aes(color = labeling,x=logFC_AB, y = logFC_CD, alpha=labeling))  + 
     labs(x = 'log(fold change AB)', y = 'log(fold change CD)', color = ' ') +
     facet_grid(.~analytic_type+map_type) +
@@ -190,7 +172,7 @@ fc_type_df <- gene_file %>%
 
 colors_type <- RColorBrewer::brewer.pal(12,'Paired')
 type_p <- ggplot() + 
-    geom_point(data = fc_type_df %>% arrange(AveExpr_AB), 
+    geom_point(data = fc_type_df %>% arrange(baseMean_AB), 
                aes(shape = labeling, color = type,x=logFC_AB, y =logFC_CD, alpha=labeling))  + 
     labs(x = 'log(fold change AB)', y = 'log(fold change CD)', color = ' ', shape = ' ') +
     facet_grid(.~analytic_type+map_type) +

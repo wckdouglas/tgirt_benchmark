@@ -27,7 +27,7 @@ kallisto_files_df <-  list.files(project_path, pattern = '[1-3]$') %>%
     mutate(filename = str_c(project_path,samplename,'abundance.tsv',sep='/'))%>%
     mutate(samplename = str_replace_all(samplename,'-','_')) %>%
     mutate(mix = str_sub(samplename, 8,8)) %>%
-    mutate(sample_id = str_sub(samplename, 10, 10)) %>%
+    mutate(sample_id = str_sub(samplename, 11, 10)) %>%
     tbl_df
     
 
@@ -61,7 +61,8 @@ fit_DESeq <- function(sample_comparison){
     return(dds)
 }
 
-kallisto_df <- map(c('A|B','C|D'), fit_DESeq) 
 out_file_name = file.path(dirname(project_path),'kallisto_DESeq.feather')
-write_feather(kallisto_df, out_file_name)
+kallisto_df <- map(c('A|B','C|D'), fit_DESeq)  %>%
+    purrr:::reduce(rbind) %>%
+    write_feather(out_file_name)
 message('Written: ', out_file_name)

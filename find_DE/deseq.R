@@ -10,6 +10,7 @@ library(stringr)
 library(tibble)
 library(dplyr)
 
+#subset data table to retain needed columns
 selectSample <- function(d, pattern) {
     d <- d %>% select(grep(str_c('id|',pattern),names(.)))
     d <- data.frame(d)
@@ -17,80 +18,35 @@ selectSample <- function(d, pattern) {
     return (d[,-1])
 }
 
-fitDESeq <-  function(df){
+
+# fitting deseq to table using input mix comparison
+fitDESeq <-  function(comparison,df){
+    df <- selectSample(df, comparison)
     col_data <- data.frame(samplenames = names(df)) %>% 
-        mutate(annotation = str_sub(samplenames,8,8)) %>% 
-        mutate(annotation =  factor(annotation,levels = rev(unique(annotation)))) 
+        mutate(mix = str_sub(samplenames,8,8)) %>% 
+        mutate(mix =  factor(mix,levels = rev(unique(mix)))) 
     row.names(col_data) <- col_data$samplenames
     de <- DESeqDataSetFromMatrix(countData = df,
                            colData = col_data,
-                           design = ~annotation) %>%
+                           design = ~mix) %>%
         DESeq() %>%
         results() %>%
         data.frame  %>%
-        select(log2FoldChange,padj,baseMean,pvalue) %>%
-        setNames(paste(c('logFC','adj.P.Val','AveExpr','P.Val'), 
-                 paste(unique(col_data$annotation),collapse = ''),sep='_')) %>%
         rownames_to_column(var = "id") %>%
+        mutate(comparison = str_replace(comparison,'\\|',' vs ')) %>%
         tbl_df
     return(de)
 }
 
-rename_ryan <- function(column_name){
-    if (grepl('ref',column_name)){
-        sample_mix <- str_sub(column_name,4,4)
-        sample_id <- str_sub(column_name,5,5)
-        return(str_c('Sample',sample_mix,sample_id,sep='_'))
-    }else{
-        return(column_name)
-    }
-}
-
-# read files
-gene_file <- '/stor/work/Lambowitz/ref/GRCh38/transcripts.tsv' %>%
+project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/pipeline7'
+out_table <- str_c(project_path,'/deseq_genome.feather',sep='/')
+project_path %>%
+    str_c('/Counts/RAW/combined_gene_count.tsv') %>%
     read_tsv()  %>%
-    dplyr::rename(id=gene_id) %>%
-    select(id, name, type) %>%
-    unique() %>%
-    tbl_df
-
-
-project_path <- '/stor/scratch/Lambowitz/cdw2854/bench_marking'
-genome_df <- project_path %>%
-    str_c('/genome_mapping/pipeline7_counts/RAW/combined_gene_count.tsv') %>%
-    read_tsv()  %>%
-    inner_join(gene_file) %>%
-    filter(type %in% c('ERCC')) %>%
-    select(-name,-type) %>%
-    tbl_df
-
-ryan_df <- project_path %>%
-    str_c('/genome_mapping/old_pipeline/countsData.tsv', sep='/') %>%
-    read_tsv() %>%
-    filter(type %in% c('ERCC')) %>%
-    select(grep('ref|id|type|name', names(.)))  %>%
-    set_names(sapply(names(.),rename_ryan)) %>%
-    mutate(id = ifelse(type=='tRNA', str_replace(id,'[0-9]+',''),id)) %>%
-    mutate(name = ifelse(type=='tRNA', str_replace(name,'[0-9]+',''),name)) %>%
-    group_by(id,type,name) %>%
-    summarise_all(sum) %>%
-    ungroup() %>%
-    tbl_df
-    
-# ================ Make sample table ===================
-g_AB <- selectSample(genome_df, 'A|B')
-g_CD <- selectSample(genome_df, 'C|D')
-ryan_AB <- selectSample(ryan_df,'A|B')
-ryan_CD <- selectSample(ryan_df,'C|D')
-
-deseq_fc_df <- inner_join(fitDESeq(g_AB), fitDESeq(g_CD)) %>%
-    mutate(map_type = 'W/ multimap') 
-ryan_deseq_fc_df <- inner_join(fitDESeq(ryan_AB), fitDESeq(ryan_CD),by='id') %>%
-    mutate(map_type = 'W/o multimap') 
-df <- deseq_fc_df %>%
-    rbind(ryan_deseq_fc_df)
-out_table <- str_c(project_path,'/genome_mapping/pipeline7_counts/deseq_genome_ercc.feather',sep='/')
-write_feather(df, out_table)
-
+    tbl_df %>%
+    map_df(c('A|B','C|D'), fitDESeq, .) %>%
+    mutate(map_type = 'W/ multimap')  %>%
+    write_feather(out_table)
+message('Written: ', out_table)
 
 

@@ -28,8 +28,8 @@ def readSample(count_file_path, tRNA_count_path, sample_id):
     return df
 
 def main():
-    work = os.environ['SCRATCH']
-    count_path = work + '/bench_marking/genome_mapping/pipeline7_counts'
+    work = os.environ['WORK']
+    count_path = work + '/cdw2854/bench_marking/genome_mapping/Counts'
     count_file_path = count_path + '/RAW'
     tRNA_count_path = count_path + '/tRNA_anti'
     count_files = glob.glob(count_file_path + '/*counts')

@@ -1,4 +1,4 @@
-WORK_PATH=/stor/work/Lambowitz/ref/GRCh38
+WORK_PATH=/stor/work/Lambowitz/ref/human_transcriptome
 OUT_FILE=$WORK_PATH/transcripts.tsv
 python transcript_table.py $WORK_PATH
 python tRNA_fai2table.py >> $OUT_FILE
