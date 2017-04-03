@@ -21,18 +21,22 @@ cat $TRANSCRIPTOME/ercc.fa \
    | awk '{print $1,0,length($2),$1,0,"+"}' OFS='\t' \
    > $TRANSCRIPTOME/ercc.bed
 
+#Download ERCC
+python get_rRNA.py $TRANSCRIPTOME/rRNA
+echo 'gi|23898|emb|X12811.1|  274     394     5S_rRNA 0       +       5S_rRNA 5S_rRNA
+gi|555853|gb|U13369.1|HSU13369  3657    5527    18S_rRNA        0       +       18S_rRNA        18S_rRNA
+gi|555853|gb|U13369.1|HSU13369  6623    6779    5.8S_rRNA       0       +       5.8S_rRNA       5.8S_rRNA
+gi|555853|gb|U13369.1|HSU13369  7935    12969   28S_rRNA        0       +       28S_rRNA        28S_rRNA' > $TRANSCRIPTOME/rRNA.bed
+
 #Download transcripts and merge tRNA
 curl $ENSEMBL_GENE > $TRANSCRIPTOME/transcriptome.fa.gz
 zcat $TRANSCRIPTOME/transcriptome.fa.gz \
-	| cat - $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/ercc.fa \
+	| cat - $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/rRNA.fa $TRANSCRIPTOME/ercc.fa \
 	> $TRANSCRIPTOME/whole_transcriptome.fa
-
-## Download gtf
-curl $ENSEMBL_GTF|gunzip > $TRANSCRIPTOME/genes.gtf
-
 
 ## make transcript table
 OUT_FILE=$TRANSCRIPTOME/transcripts.tsv
 zcat $TRANSCRIPTOME/transcriptome.fa.gz | python transcript_table_from_fa.py > $OUT_FILE
 python tRNA_fai2table.py $TRANSCRIPTOME/tRNA.fa >> $OUT_FILE
-awk '{print $1,$1,$1,ERCC}' OFS='\t' $TRANSCRIPTOME/ercc.bed >> $OUT_FILE
+awk '{print $1,$1,$1,"ERCC"}' OFS='\t' $TRANSCRIPTOME/ercc.bed >> $OUT_FILE
+awk -F'\t' '{print $1,$4,$1,"rRNA"}' OFS='\t' $TRANSCRIPTOME/rRNA.bed >> $OUT_FILE
