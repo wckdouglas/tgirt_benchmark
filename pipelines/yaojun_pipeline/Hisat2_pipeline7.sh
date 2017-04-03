@@ -230,9 +230,10 @@ echo 'Finished counting rRNA:' $Sample
 cd "$Samplefolder/Combined/"
 bedtools coverage -s -counts -F 0.1 -a $REF/GRCh38/Bed_for_counts_only/sncRNA_no_tRNA.bed -b sncRNA.bed > sncRNA.counts
 bedtools coverage -s -counts -F 0.1 -a $REF/GRCh38/Bed_for_counts_only/genes_no_sncRNA_rRNA_tRNA.bed -b primary_no_sRNAs.bed  > non_sRNAs.counts
+bedtools coverage -s -counts -F 0.1 -a $REF/RNASeqConsortium/ercc/ercc.bed -b primary_no_sRNAs.bed > ercc.counts
 
 cd "$Countsfolder"
-cat ../$Sample/Combined/non_sRNAs.counts ../$Sample/Combined/sncRNA.counts ../$Sample/rRNA/rRNA.counts > RAW/$Sample.counts
+cat ../$Sample/Combined/non_sRNAs.counts ../$Sample/Combined/sncRNA.counts ../$Sample/rRNA/rRNA.counts ercc.counts > RAW/$Sample.counts
 awk '{print $8,$1,$2,$3,$6,$4,$7,$9}' OFS=\\t FS=\\t RAW/$Sample.counts > Simple/$Sample.s.counts
 cd Simple
 sed -i 's/3prime_overlapping_ncrna/other_ncRNA/g' $Sample.s.counts
