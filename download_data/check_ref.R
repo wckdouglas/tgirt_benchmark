@@ -35,10 +35,14 @@ patterns <- c('miRNA|misc_RNA|snoRNA|snRNA',
               'protein_coding',
              'miRNA|misc_RNA|snoRNA|snRNA|tRNA',
              '5S_rRNA|18S_rRNA|5.8S_rRNA|28S_rRNA',
-             '18S_rRNA|28S_rRNA|5.8S_rRNA|5S_rRNA|miRNA|misc_RNA|rRNA|snoRNA|snRNA|tRNA')
+             '18S_rRNA|28S_rRNA|5.8S_rRNA|5S_rRNA|miRNA|misc_RNA|rRNA|snoRNA|snRNA|tRNA',
+             'rRNA',
+             'miRNA|misc_RNA|rRNA|snoRNA|snRNA|tRNA')
 filenames <- c('sncRNA_no_tRNA',
                'protein',
               'sncRNA_x_protein.bed',
               'rDNA', 
-              'genes_no_sncRNA_rRNA_tRNA')
+              'genes_no_sncRNA_rRNA_tRNA',
+              'rRNA_for_bam_filter',
+              'sncRNA_rRNA_for_bam_filter')
 map2(patterns, filenames,filter_bed)
