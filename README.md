@@ -16,9 +16,31 @@ and run all the command it generates
 
 ## Make reference ##
 
+### make transcripts reference ###
+
+1. download Ensembl transcripts
+2. download ERCC transcripts
+3. get rRNA fasta file from NCBI
+4. merge with customized tRNA fasta
+5. Make table matching transcripts to genes
+6. bowtie2 index [rRNA and tRNA]
+
 ```
 cd download_data
 bash make_transcript_ref.sh
+```
+
+### make genome reference ###
+
+1. downlaod ensembl genes from biomart
+2. Make bed file with rRNA, tRNA and ERCC  and all ensembl genes
+3. Make SAF file for **featureCounts**
+4. split bed file for counts
+5. download Ensembl hg38 genome
+6. spike in rRNA and ERCC fasta
+7. make **HISAT2** index from the reference
+
+```
 bash make_genome_ref.sh
 ```
 
