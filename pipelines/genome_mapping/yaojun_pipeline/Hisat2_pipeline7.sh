@@ -141,12 +141,16 @@ echo 'Finished BOWTIE2: ' $Sample
 
 #8 Combine Pass1 and Pass2, process the protein reads, sense protein reads, and calculate RNAseqmatrix, intersect tRNA reads
 cd "$Samplefolder/Combined/"
-cat ../Hisat/multi.sam ../Bowtie/multi.sam > multi.sam
-Rscript  /home1/02727/cdw2854/tgirt_benchmark/pipelines/yaojun_pipeline/multi_map_process.R multi.sam multi_filtered.sam
-cat ../Hisat/header.sam ../Hisat/uniq.sam ../Bowtie/uniq.sam multi_filtered.sam > primary.sam
-samtools view -@24 -bS primary.sam > primary.bam
-samtools sort -n -@ 24 -O bam -T temp primary.bam > temp.bam
-mv temp.bam primary.bam
+cat ../Hisat/header.sam ../Hisat/multi.sam ../Bowtie/multi.sam | samtools view -b > multi.bam
+python ~/tgirt_benchmark/pipelines/genome_mapping/yaojun_pipeline/reduce_multi_reads.py  \
+	--infile multi.bam \
+	--outfile multi_filtered.bam \
+	--bam_in --bam_out 
+samtools view multi_filtered.bam \
+	| cat ../Hisat/header.sam ../Hisat/uniq.sam ../Bowtie/uniq.sam - \
+	| samtools view -@24 -bS -	\
+	| samtools sort -n -@ 24 -O bam -T temp \
+	> primary.bam
 echo "Finished correcting multimple mapped reads: " $Sample
 
 bedtools pairtobed -s -f 0.01 -abam primary.bam -b $REF/GRCh38/Bed_for_counts_only/tRNA.bed > ../tRNA/tRNA_primary.bam
