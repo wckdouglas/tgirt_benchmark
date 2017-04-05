@@ -119,9 +119,8 @@ samtools view -F4 hisat.bam |grep -v -w "NH:i:1" | awk '{CIGAR1=$6;L1=$0;chr1=$3
 
 #5 Preparing reads for Bowtie2 mapping
 cd "$Samplefolder/Bowtie/"
-samtools view -@ 24 -bf4 "$Samplefolder/Hisat/hisat.bam" > unmapped.bam
-samtools bam2fq -1 unmapped.1.fq -2 unmapped.2.fq -s unmapped.unpaired.fq unmapped.bam
-rm unmapped.bam
+samtools view -@ 24 -bf4 "$Samplefolder/Hisat/hisat.bam" \
+	| bamToFastq -i - -fq unmapped.1.fq -fq2 unmapped.2.fq
 gzip -f unmapped.1.fq
 gzip -f unmapped.2.fq
 echo 'Finished HISAT2: ' $Sample
@@ -185,7 +184,7 @@ echo 'Converted to bed' $Sample
 
 #9 tRNA reads process
 cd "$Samplefolder/tRNA/"
-samtools bam2fq -1 tRNA.1.fq -2 tRNA.2.fq -s tRNA.unpaired.fq tRNA_primary.bam
+bamToFastq -i tRNA_primary.bam -fq tRNA.1.fq -fq2 tRNA.2.fq 
 gzip -f tRNA.1.fq
 gzip -f tRNA.2.fq
 bowtie2 -p 24 --local -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 --norc --no-mixed --no-discordant -x $REF/human_transcriptome/tRNA -1 tRNA.1.fq.gz -2 tRNA.2.fq.gz | samtools view -bS - > tRNA_remap.bam
@@ -221,7 +220,7 @@ echo 'Finished counting tRNA:' $Sample
 
 #12 rRNA reads process
 cd "$Samplefolder/rRNA/"
-samtools bam2fq -1 rRNA.1.fq -2 rRNA.2.fq -s rRNA.unpaired.fq rRNA_primary.bam
+bamToFastq -fq rRNA.1.fq -fq2 rRNA.2.fq -i rRNA_primary.bam
 gzip -f rRNA.1.fq
 gzip -f rRNA.2.fq
 bowtie2 -p 24 -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 --no-mixed --no-discordant -x $REF/GRCh38/Plasma_ref/rDNA -1 rRNA.1.fq.gz -2 rRNA.2.fq.gz | samtools view -bS - > rRNA_remap.bam
