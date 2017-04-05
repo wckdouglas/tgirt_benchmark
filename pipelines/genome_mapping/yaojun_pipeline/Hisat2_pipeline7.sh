@@ -157,7 +157,7 @@ bedtools pairtobed -s -f 0.01 -abam primary.bam -b $BED_PATH/tRNA.bed > ../tRNA/
 bedtools pairtobed -s -f 0.01 -abam primary.bam -b $BED_PATH/rRNA_for_bam_filter.bed > ../rRNA/rRNA_primary.bam
 bedtools pairtobed -s -f 0.01 -abam primary.bam -b $BED_PATH/sncRNA_no_tRNA.bed > sncRNA.bam
 bedtools pairtobed -s -f 0.01 -type neither -abam primary.bam -b $BED_PATH/sncRNA_rRNA_for_bam_filter.bed > primary_no_sncRNA_tRNA_rRNA.bam
-bedtools pairtobed -abam primary_no_sncRNA_tRNA_rRNA.bam -b $REF/GRCh38/Bed_for_counts_only/protein.bed > protein.bam
+bedtools pairtobed -abam primary_no_sncRNA_tRNA_rRNA.bam -b $BED_PATH/protein.bed > protein.bam
 mkdir -p temp
 cd temp
 samtools view -@ 24 -bF64 ../protein.bam > R2.bam
@@ -223,17 +223,17 @@ cd "$Samplefolder/rRNA/"
 bamToFastq -fq rRNA.1.fq -fq2 rRNA.2.fq -i rRNA_primary.bam
 gzip -f rRNA.1.fq
 gzip -f rRNA.2.fq
-bowtie2 -p 24 -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 --no-mixed --no-discordant -x $REF/GRCh38/Plasma_ref/rDNA -1 rRNA.1.fq.gz -2 rRNA.2.fq.gz | samtools view -bS - > rRNA_remap.bam
+bowtie2 -p 24 -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 --no-mixed --no-discordant -x $REF/human_transcriptome/rRNA -1 rRNA.1.fq.gz -2 rRNA.2.fq.gz | samtools view -bS - > rRNA_remap.bam
 samtools view -bF4 rRNA_remap.bam | bedtools bamtobed -mate1 -bedpe -i - > rRNA.bedpe
 awk '{FS="\t"; OFS="\t"; if ($2>$5) $2=$5; if ($3<$6) $3=$6; print $1,$2,$3,$7,0,$9}' rRNA.bedpe > rRNA.bed
 awk '{print $3-$2}' rRNA.bed |sort|uniq -c| sort -k 2n|awk '{print $2,"\t",$1}' > rRNA_span.txt
-bedtools coverage -s -counts -F 0.1 -a $REF/GRCh38/Bed_for_counts_only/rDNA.bed -b rRNA.bed > rRNA.counts
+bedtools coverage -s -counts -F 0.1 -a $BED_PATH/rDNA.bed -b rRNA.bed > rRNA.counts
 echo 'Finished counting rRNA:' $Sample
 
 #13 Generate gene counts file
 cd "$Samplefolder/Combined/"
-bedtools coverage -s -counts -F 0.1 -a $REF/GRCh38/Bed_for_counts_only/sncRNA_no_tRNA.bed -b sncRNA.bed > sncRNA.counts
-bedtools coverage -s -counts -F 0.1 -a $REF/GRCh38/Bed_for_counts_only/genes_no_sncRNA_rRNA_tRNA.bed -b primary_no_sRNAs.bed  > non_sRNAs.counts
+bedtools coverage -s -counts -F 0.1 -a $BED_PATH/sncRNA_no_tRNA.bed -b sncRNA.bed > sncRNA.counts
+bedtools coverage -s -counts -F 0.1 -a $BED_PATH/genes_no_sncRNA_rRNA_tRNA.bed -b primary_no_sRNAs.bed  > non_sRNAs.counts
 
 cd "$Countsfolder"
 cat ../$Sample/Combined/non_sRNAs.counts ../$Sample/Combined/sncRNA.counts  > RAW/$Sample.counts
