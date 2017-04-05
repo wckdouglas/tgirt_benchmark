@@ -2,7 +2,7 @@
 
 DATAPATH=${SCRATCH}/bench_marking/data
 INDEX_PATH=${REF}/human_transcriptome
-INDEX=${INDEX_PATH}/kallisto_transcriptome/kallisto_transcriptome
+INDEX=${INDEX_PATH}/transcriptome_kallisto/kallisto_transcriptome
 RESULTPATH=${SCRATCH}/bench_marking/alignment_free
 COUNT_PATH=${RESULTPATH}/countFiles
 BAM_PATH=${RESULTPATH}/bamFiles
