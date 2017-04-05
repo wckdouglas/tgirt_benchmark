@@ -40,7 +40,7 @@ patterns <- c('miRNA|misc_RNA|snoRNA|snRNA',
              'miRNA|misc_RNA|rRNA|snoRNA|snRNA|tRNA')
 filenames <- c('sncRNA_no_tRNA',
                'protein',
-              'sncRNA_x_protein.bed',
+              'sncRNA_x_protein',
               'rDNA', 
               'genes_no_sncRNA_rRNA_tRNA',
               'rRNA_for_bam_filter',

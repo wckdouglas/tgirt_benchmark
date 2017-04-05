@@ -4,3 +4,10 @@ This is the repository for storing scripts attempting to compare pipelines for T
 
 We will use MAQC samples for test data.
 
+## Download data
+
+```
+python download_data/download.py
+```
+
+## Make reference

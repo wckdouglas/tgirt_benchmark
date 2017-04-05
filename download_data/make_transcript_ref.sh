@@ -27,7 +27,9 @@ python get_rRNA.py $TRANSCRIPTOME/rRNA
 echo 'gi|23898|emb|X12811.1|  274     394     5S_rRNA 0       +       5S_rRNA 5S_rRNA
 gi|555853|gb|U13369.1|HSU13369  3657    5527    18S_rRNA        0       +       18S_rRNA        18S_rRNA
 gi|555853|gb|U13369.1|HSU13369  6623    6779    5.8S_rRNA       0       +       5.8S_rRNA       5.8S_rRNA
-gi|555853|gb|U13369.1|HSU13369  7935    12969   28S_rRNA        0       +       28S_rRNA        28S_rRNA' > $TRANSCRIPTOME/rRNA.bed
+gi|555853|gb|U13369.1|HSU13369  7935    12969   28S_rRNA        0       +       28S_rRNA        28S_rRNA' \
+	| awk '{print $1,$2,$3,$4,$5,$6,"rDNA",$8}' OFS='\t' \
+	> $TRANSCRIPTOME/rRNA.bed
 
 #Download transcripts and merge tRNA
 curl $ENSEMBL_TRANSCRIPT > $TRANSCRIPTOME/ensembl_cDNA.fa.gz
