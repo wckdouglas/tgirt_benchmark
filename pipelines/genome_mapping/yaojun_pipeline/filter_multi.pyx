@@ -79,16 +79,13 @@ def is_ribo_chrom(chroms):
     return np.array([True if 'gi' in chrom else False for chrom in chroms])
 
 
-cpdef printProgress(int read_count):
-    if read_count % 1000 == 0:
-        sys.stderr.write('Processed: %i\n' %read_count)
-    return 0
-
 def processBam(in_bam, out_bam, bam_in_bool, bam_out_bool):
 
     cdef:
         AlignedSegment alignment, read1_aln, read2_aln
-        int read_count, read_group_count = 0
+        int read_count
+        int out_read_count = 0
+        int read_group_count = 0
 
     read_flag = 'rb' if bam_in_bool else 'r'
     write_flag = 'wb' if bam_out_bool else 'w'
@@ -97,7 +94,6 @@ def processBam(in_bam, out_bam, bam_in_bool, bam_out_bool):
     with pysam.Samfile(in_bam, read_flag) as in_sam:
         with pysam.Samfile(out_bam, write_flag, template = in_sam) as out_sam:
             for read_count, alignment in enumerate(in_sam):
-                printProgress(read_count)
                 if read_group_count == 0:
                     # initial group for first alignment
                     read_group = read_pairs(alignment)
@@ -109,6 +105,7 @@ def processBam(in_bam, out_bam, bam_in_bool, bam_out_bool):
                         read1_aln, read2_aln = read_group.output_read()
                         out_sam.write(read1_aln)
                         out_sam.write(read2_aln)
+                        out_read_count += 1
                         read_group = read_pairs(alignment)
                     else:
                         read_group.put_in_group(alignment)
@@ -117,4 +114,6 @@ def processBam(in_bam, out_bam, bam_in_bool, bam_out_bool):
             read1_aln, read2_aln = read_group.output_read()
             out_sam.write(read1_aln)
             out_sam.write(read2_aln)
+            out_read_count += 1
+    sys.stderr.write('Writting %i read pairs\n' %(out_read_count))
     return 0
