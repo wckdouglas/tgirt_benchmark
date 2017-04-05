@@ -103,6 +103,7 @@ if [ $num_of_file != 2 ];then echo "More than 2 files share the same sample name
 trimed1="$Trimfolder/$Sample.1.fq.gz"
 trimed2="$Trimfolder/$Sample.2.fq.gz"
 #cutadapt -m 15 -O 5 -n 3 -q 20 -b AAGATCGGAAGAGCACACGTCTGAACTCCAGTCAC  -B GATCGTCGGACTGTAGAACTCTGAACGTGTAGA -o $trimed1 -p $trimed2 $file1 $file2
+BED_PATH=$(dirname $Ref)
 
 #3 Hisat2 mapping, Pass1
 hisat2 -p 24 -k 10 --no-mixed --no-discordant --known-splicesite-infile $Splicesite --novel-splicesite-outfile "$Samplefolder/Hisat/novelsite.txt" -x $Ref -1 $trimed1 -2 $trimed2 |samtools view -bS - > "$Samplefolder/Hisat/hisat.bam"
@@ -153,19 +154,19 @@ samtools view multi_filtered.bam \
 	> primary.bam
 echo "Finished correcting multimple mapped reads: " $Sample
 
-bedtools pairtobed -s -f 0.01 -abam primary.bam -b $REF/GRCh38/Bed_for_counts_only/tRNA.bed > ../tRNA/tRNA_primary.bam
-bedtools pairtobed -s -f 0.01 -abam primary.bam -b $REF/GRCh38/Bed_for_counts_only/rRNA_for_bam_filter.bed > ../rRNA/rRNA_primary.bam
-bedtools pairtobed -s -f 0.01 -abam primary.bam -b $REF/GRCh38/Bed_for_counts_only/sncRNA_no_tRNA.bed > sncRNA.bam
-bedtools pairtobed -s -f 0.01 -type neither -abam primary.bam -b $REF/GRCh38/Bed_for_counts_only/sncRNA_rRNA_for_bam_filter.bed > primary_no_sncRNA_tRNA_rRNA.bam
+bedtools pairtobed -s -f 0.01 -abam primary.bam -b $BED_PATH/tRNA.bed > ../tRNA/tRNA_primary.bam
+bedtools pairtobed -s -f 0.01 -abam primary.bam -b $BED_PATH/rRNA_for_bam_filter.bed > ../rRNA/rRNA_primary.bam
+bedtools pairtobed -s -f 0.01 -abam primary.bam -b $BED_PATH/sncRNA_no_tRNA.bed > sncRNA.bam
+bedtools pairtobed -s -f 0.01 -type neither -abam primary.bam -b $BED_PATH/sncRNA_rRNA_for_bam_filter.bed > primary_no_sncRNA_tRNA_rRNA.bam
 bedtools pairtobed -abam primary_no_sncRNA_tRNA_rRNA.bam -b $REF/GRCh38/Bed_for_counts_only/protein.bed > protein.bam
 mkdir -p temp
 cd temp
 samtools view -@ 24 -bF64 ../protein.bam > R2.bam
 samtools view -@ 24 -bf64 ../protein.bam > R1.bam
-bedtools intersect -s -wa -a R1.bam -b $REF/GRCh38/Bed_for_counts_only/protein.bed > R1_1.bam
-bedtools intersect -S -wa -a R2.bam -b $REF/GRCh38/Bed_for_counts_only/protein.bed > R2_1.bam
-bedtools intersect -s -bed -v -f 0.01 -wa -a R1_1.bam -b $REF/GRCh38/Bed_for_counts_only/sncRNA_x_protein.bed |cut -f 4|cut -f 1 -d "/" > R1.id
-bedtools intersect -S -bed -v -f 0.01 -wa -a R2_1.bam -b $REF/GRCh38/Bed_for_counts_only/sncRNA_x_protein.bed |cut -f 4|cut -f 1 -d "/" > R2.id
+bedtools intersect -s -wa -a R1.bam -b $BED_PATH/protein.bed > R1_1.bam
+bedtools intersect -S -wa -a R2.bam -b $BED_PATH/protein.bed > R2_1.bam
+bedtools intersect -s -bed -v -f 0.01 -wa -a R1_1.bam -b $BED_PATH/sncRNA_x_protein.bed |cut -f 4|cut -f 1 -d "/" > R1.id
+bedtools intersect -S -bed -v -f 0.01 -wa -a R2_1.bam -b $BED_PATH/sncRNA_x_protein.bed |cut -f 4|cut -f 1 -d "/" > R2.id
 cat R1.id R2.id |sort -u > id.txt
 #picard FilterSamReads INPUT=../protein.bam FILTER=includeReadList READ_LIST_FILE=id.txt OUTPUT=../protein.sense.bam WRITE_READS_FILES=false SORT_ORDER=unsorted
 cd ..
@@ -187,7 +188,7 @@ cd "$Samplefolder/tRNA/"
 samtools bam2fq -1 tRNA.1.fq -2 tRNA.2.fq -s tRNA.unpaired.fq tRNA_primary.bam
 gzip -f tRNA.1.fq
 gzip -f tRNA.2.fq
-bowtie2 -p 24 --local -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 --norc --no-mixed --no-discordant -x $REF/GRCh38/tRNA/tRNA -1 tRNA.1.fq.gz -2 tRNA.2.fq.gz | samtools view -bS - > tRNA_remap.bam
+bowtie2 -p 24 --local -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 --norc --no-mixed --no-discordant -x $REF/human_transcriptome/tRNA -1 tRNA.1.fq.gz -2 tRNA.2.fq.gz | samtools view -bS - > tRNA_remap.bam
 samtools view -bF4 tRNA_remap.bam | bedtools bamtobed -mate1 -bedpe -i - > tRNA.bedpe
 awk '{FS="\t"; OFS="\t"; if ($2>$5) $2=$5; if ($3<$6) $3=$6; print $1,$2,$3,$7,0,$9}' tRNA.bedpe > tRNA.bed
 awk '{print $3-$2}' tRNA.bed |sort|uniq -c| sort -k 2n|awk '{print $2,"\t",$1}' > tRNA_span.txt
@@ -234,10 +235,9 @@ echo 'Finished counting rRNA:' $Sample
 cd "$Samplefolder/Combined/"
 bedtools coverage -s -counts -F 0.1 -a $REF/GRCh38/Bed_for_counts_only/sncRNA_no_tRNA.bed -b sncRNA.bed > sncRNA.counts
 bedtools coverage -s -counts -F 0.1 -a $REF/GRCh38/Bed_for_counts_only/genes_no_sncRNA_rRNA_tRNA.bed -b primary_no_sRNAs.bed  > non_sRNAs.counts
-bedtools coverage -s -counts -F 0.1 -a $REF/RNASeqConsortium/ercc/ercc.bed -b primary_no_sRNAs.bed > ercc.counts
 
 cd "$Countsfolder"
-cat ../$Sample/Combined/non_sRNAs.counts ../$Sample/Combined/sncRNA.counts ../$Sample/rRNA/rRNA.counts ercc.counts > RAW/$Sample.counts
+cat ../$Sample/Combined/non_sRNAs.counts ../$Sample/Combined/sncRNA.counts  > RAW/$Sample.counts
 awk '{print $8,$1,$2,$3,$6,$4,$7,$9}' OFS=\\t FS=\\t RAW/$Sample.counts > Simple/$Sample.s.counts
 cd Simple
 sed -i 's/3prime_overlapping_ncrna/other_ncRNA/g' $Sample.s.counts
