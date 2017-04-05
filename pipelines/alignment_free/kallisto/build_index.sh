@@ -1,4 +1,5 @@
-cd /stor/work/Lambowitz/ref/human_transcriptome
-mkdir kalliso_transcriptome
-cd kalliso_transcriptome
-kallisto index -i kallisto_transcriptome ../whole_transcriptome.fa
+cd $REF/human_transcriptome
+KALLISTO_REF=transcriptome_kallisto
+mkdir $KALLISTO_REF
+cd $KALLISTO_REF
+kallisto index -i transcriptome_kallisto ../whole_transcriptome.fa

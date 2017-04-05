@@ -34,13 +34,14 @@ curl $ENSEMBL_TRANSCRIPT > $TRANSCRIPTOME/ensembl_cDNA.fa.gz
 curl $ENSEMBL_NON_CODING > $TRANSCRIPTOME/ensembl_ncrna.fa.gz
 zcat $TRANSCRIPTOME/transcriptome.fa.gz \
 		$TRANSCRIPTOME/ensembl_ncrna.fa.gz \
+	| python correct_transcriptome_id.py \
+	| tee $TRANSCRIPTOME/ensembl_transcripts.fa \
 	| cat - $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/rRNA.fa $TRANSCRIPTOME/ercc.fa \
 	> $TRANSCRIPTOME/whole_transcriptome.fa
 
 ## make transcript table
 OUT_FILE=$TRANSCRIPTOME/transcripts.tsv
-zcat $TRANSCRIPTOME/transcriptome.fa.gz \
-		$TRANSCRIPTOME/ensembl_ncrna.fa.gz \
+cat $TRANSCRIPTOME/ensembl_transcripts.fa \
 	| python transcript_table_from_fa.py > $OUT_FILE
 python tRNA_fai2table.py $TRANSCRIPTOME/tRNA.fa >> $OUT_FILE
 awk '{print $1,$1,$1,"ERCC"}' OFS='\t' $TRANSCRIPTOME/ercc.bed >> $OUT_FILE
