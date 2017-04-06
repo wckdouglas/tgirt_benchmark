@@ -5,11 +5,24 @@ library(dplyr)
 library(cowplot)
 library(stringr)
 
-filter_func <- function(d, label){
-    d %>%
-    filter(grepl('ERCC',id))  %>%
+
+filter_func <- function(df, label){
+    df %>%
     gather(samplename, abundance, -id) %>%
+    inner_join(gene_file) %>%
+    group_by(samplename) %>%
+    nest() %>%
+    mutate(tpm = map(data, function(d) {
+                            d %>%
+                                mutate(per_gene_count = abundance/gene_length) %>%
+                                mutate(tpm = per_gene_count / sum(per_gene_count))
+                            }
+        )) %>%
+    unnest(tpm) %>%
+    select(samplename, id, tpm) %>%
     mutate(prep = label) %>%
+    filter(grepl('ERCC',id))  %>%
+    dplyr::rename(abundance = tpm) %>%
     tbl_df 
 }
 
@@ -22,10 +35,19 @@ get_sample_number <- function(samplename){
     return(as.numeric(id))
 }
 
-
-ercc_file <- '/stor/work/Lambowitz/ref/RNASeqConsortium/ercc/ercc_table.tsv' %>%
-    read_tsv()  %>%
+gene_file <- '/stor/work/Lambowitz/ref/RNASeqConsortium/genes.bed' %>%
+    read_tsv(col_names=F,
+             col_type = 'ciiciccc')  %>%
+    mutate(gene_length = X3-X2) %>%
+    select(gene_length,X8) %>%
+    dplyr::rename(id=X8) %>%
     tbl_df
+
+ercc_file <- '/stor/work/Lambowitz/ref/human_transcriptome/ercc_annotation.tsv' %>%
+    read_tsv() %>%
+    inner_join(gene_file)
+
+
 
 project_path <- '/stor/scratch/Lambowitz/cdw2854/bench_marking'
 kallisto_count <- project_path %>%
@@ -49,7 +71,6 @@ genome_map_count <- str_c(project_path, '/genome_mapping/old_pipeline/countsData
     tbl_df
 
 
-
 df <- purrr::reduce(list(kallisto_count, multimap_count, genome_map_count), rbind) %>%
     mutate(sample_mix = get_mix(samplename)) %>%
     mutate(sample_id = get_sample_number(samplename)) %>%
@@ -61,12 +82,14 @@ lm_df <- df %>%
     tbl_df
 
 formula = y~x
-ercc_lm <- ggplot(data = lm_df, aes(x = log2(conc), y = log2(abundance))) +
+ercc_lm <- ggplot(data = lm_df, aes(x = log2(conc), y = log2(abundance), color = group)) +
     geom_point(alpha=0.6) +
     geom_smooth(method='lm', formula = formula) +
     ggpmisc::stat_poly_eq(formula = formula, parse = TRUE) +
     facet_grid(group~prep)+
-    panel_border()
+    panel_border() +
+    labs(x = 'log2(concentration (amol/ul))', y = 'log2(abundance (TPM or read counts)') +
+    theme(legend.position = 'none')
 
 r2_df <- lm_df %>%
     mutate(log2_abundance = log2(abundance)) %>%
@@ -85,7 +108,7 @@ ercc_r2 <- ggplot(data=r2_df, aes(x = prep, color=prep, y = r.squared, shape=gro
     theme(axis.title.y = element_text(angle=0)) +
     ylim(0.9,1)
 
-p <- plot_grid(ercc_lm, ercc_r2, ncol=1)
+p <- plot_grid(ercc_lm, ercc_r2, ncol=1, labels = letters[1:2])
 figurepath <- str_c(project_path, '/figures')
 figurename <- str_c(figurepath, '/ercc_figure.png')
 save_plot(p, file=figurename,  base_width=10, base_height=10) 

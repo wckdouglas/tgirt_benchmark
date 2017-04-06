@@ -12,7 +12,7 @@ ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.G
 
 #Download ERCC
 ERCC_annotation=https://tools.thermofisher.com/content/sfs/manuals/cms_095046.txt
-curl $ERCC_annotation > $TRANSCRIPTOME/ercc_annotation.tsv
+curl $ERCC_annotation | python clean_ercc.py  > $TRANSCRIPTOME/ercc_annotation.tsv
 curl https://tools.thermofisher.com/content/sfs/manuals/cms_095047.txt \
 	| sed 1d \
 	| awk '{printf ">%s\n%s\n",$1,$5}'  \
