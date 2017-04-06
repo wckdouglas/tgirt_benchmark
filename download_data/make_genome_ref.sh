@@ -14,6 +14,7 @@ cat $REF_PATH/tRNA.bed  \
 	$TRANSCRIPTOME_PATH/ercc.bed >> $REF_PATH/genes.bed
 echo 'GeneID\tchr\tstart\tend\tstrand' > $REF_PATH/genes.SAF
 awk '{print $NF,$1,$2,$3,$6}' OFS='\t' $REF_PATH/genes.bed >> $REF_PATH/genes.SAF
+Rscript check_ref.R
 
 
 #download fasta
