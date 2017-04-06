@@ -7,7 +7,7 @@ import re
 work_path = os.environ['WORK']
 scratch_path = os.environ['SCRATCH']
 gene_file = os.environ['REF'] + '/RNASeqConsortium/genes.SAF'
-project_path = scratch_path + '/bench_marking/genome_mapping/jun_pipeline'
+project_path = scratch_path + '/bench_marking/genome_mapping/pipeline7'
 count_path = project_path + '/conventional'
 sample_folder = glob.glob(project_path + '/*') 
 sample_folder = filter(lambda x: re.search('-[0-9]$',x), sample_folder)
