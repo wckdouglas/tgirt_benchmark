@@ -11,7 +11,7 @@ library(feather)
 library(DESeq2)
 
 # read gene table
-gene_file <- '/stor/work/Lambowitz/ref/GRCh38/transcripts.tsv' %>%
+gene_file <- '/stor/work/Lambowitz/ref/human_transcriptome/transcripts.tsv' %>%
     read_tsv()  %>%
     dplyr::rename(target_id=t_id) %>%
     tbl_df
