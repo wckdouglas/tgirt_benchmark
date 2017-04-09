@@ -38,15 +38,21 @@ fitDESeq <-  function(comparison,df){
     return(de)
 }
 
-project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/pipeline7'
-out_table <- str_c(project_path,'/deseq_genome.feather',sep='/')
-project_path %>%
-    str_c('/Counts/RAW/combined_gene_count.tsv') %>%
-    read_tsv()  %>%
-    tbl_df %>%
-    map_df(c('A|B','C|D'), fitDESeq, .) %>%
-    mutate(map_type = 'W/ multimap')  %>%
-    write_feather(out_table)
-message('Written: ', out_table)
+out_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes'
+read_table_and_DESeq <- function(tablename, map_type){
+    out_table <- str_c(out_path,'/', map_type,'.feather')
+    tablename %>%
+        read_tsv()  %>%
+        tbl_df %>%
+        map_df(c('A|B','C|D'), fitDESeq, .) %>%
+        mutate(map_type = map_type)  %>%
+        write_feather(out_table)
+        message('Written: ', out_table)
+}
+    
+table_names <- c('/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/pipeline7/Counts/RAW/combined_gene_count.tsv',
+                 '/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/conventional/feature_counts.tsv')
+map_types <- c('Customized_pipeline','Conventional_pipeline')
+map2(table_names, map_types, read_table_and_DESeq)
 
 

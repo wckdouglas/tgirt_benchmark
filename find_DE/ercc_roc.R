@@ -14,42 +14,27 @@ ercc_file <- '/stor/work/Lambowitz/ref/RNASeqConsortium/ercc/ercc_table.tsv' %>%
     tbl_df
 
 # read all tables ====================================================
-project_path <- '/stor/scratch/Lambowitz/cdw2854/bench_marking'
-alignment_free_df <- project_path %>%
-    str_c('/alignment_free/countFiles/sleuth_results.feather') %>%
-    read_feather() %>%
-    mutate(logFC = -b) %>%
-    dplyr::rename(id = gene_id) %>%
-    select(id,sample_base,sample_test, name,type,qval, mean_obs, logFC, pval) %>%
-    gather(variable, value, -id,-name,-type,-sample_base,-sample_test) %>%
-    mutate(variable = case_when(
-        .$variable == 'qval' ~ 'adj.P.Val',
-        .$variable == 'mean_obs' ~ 'AveExpr',
-        .$variable == 'logFC' ~ 'logFC',
-        .$variable == 'pval' ~ 'P.Val'
-    ))  %>%
-    mutate(variable = str_c(variable,'_', sample_base, sample_test)) %>%
-    select(-sample_base,-sample_test) %>%
-    spread(variable, value)  %>%
-    select(-name,-type) %>%
-    right_join(ercc_file) %>%
-    select(-group,-mix1,-mix2,-fold,-log2fold,-label) %>%
-    mutate(map_type = 'Kallisto') %>%
-    tbl_df
-
-genome_df <- project_path %>%
-    str_c('/genome_mapping/pipeline7_counts/deseq_genome.feather') %>%
-    read_feather() %>%
-    tbl_df
+project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
 
 
-df <- rbind(genome_df, alignment_free_df) %>%
+df <- file.path(project_path, 'DEgenes') %>%
+    list.files(path=., pattern = '.feather', full.names=T) %>%
+    .[!grepl('abundance',.)] %>%
+    map_df(read_feather) %>%
+    gather(variable, value, -id, -map_type, - comparison) %>%
+    filter(grepl('ERCC',id)) %>%
+    filter(grepl('pvalue|padj|baseMean|log2FoldChange', variable)) %>%
+    mutate(sample1 = str_sub(comparison, 1, 1)) %>%
+    mutate(sample2 = str_sub(comparison, 6, 6)) %>%
+    mutate(variable = str_c(variable,'_', sample1, sample2)) %>%
+    select(-sample1, -sample2,- comparison) %>%
+    spread(variable, value) %>%
     inner_join(ercc_file,by='id') %>%
-    select(map_type, id, logFC_AB, group,fold, mix1,mix2,adj.P.Val_AB,label) %>%
+    select(map_type, id, log2FoldChange_AB, group,fold, mix1,mix2, padj_AB,label) %>%
     mutate(log2fold = log2(fold)) %>%
     mutate(av_exp = (mix1+mix2)/2) %>%
-    mutate(adj.P.Val_AB = ifelse(is.na(adj.P.Val_AB),1,adj.P.Val_AB)) %>%
-    mutate(error = logFC_AB-log2fold)  %>% 
+    mutate(padj_AB = ifelse(is.na(padj_AB),1,padj_AB)) %>%
+    mutate(error = log2FoldChange_AB-log2fold)  %>% 
     tbl_df
 
 rmse_df <- df %>% 
@@ -58,7 +43,7 @@ rmse_df <- df %>%
 
 ercc_de_p<-ggplot()+
     geom_point(data=df, aes(x = log2(av_exp), 
-                            y = logFC_AB, 
+                            y = log2FoldChange_AB, 
                             color = group)) +
     geom_hline(data=df %>% select(group, log2fold),
                aes(yintercept = log2fold, color = group)) +
@@ -74,7 +59,7 @@ ercc_de_p<-ggplot()+
 ## plotting roc curve
 roc_data <- function(p_cut, de_df){
    de_df %>%
-        mutate(DE = ifelse(adj.P.Val_AB<p_cut, 'DE','notDE')) %>%
+        mutate(DE = ifelse(padj_AB<p_cut, 'DE','notDE')) %>%
         group_by(map_type,DE,label) %>%
         summarize(count = n())  %>%
         ungroup() %>%
@@ -83,7 +68,7 @@ roc_data <- function(p_cut, de_df){
 
 # 23 non DE in ERCC, 69 DE
 roc_df <- df %>% 
-    mutate(logFC_AB = ifelse(is.na(logFC_AB),1,logFC_AB)) %>%
+    mutate(padj_AB = ifelse(is.na(padj_AB),1,padj_AB)) %>%
     map_df(seq(0,1,0.001), roc_data,.) %>%
     mutate(label = str_c(DE,'-',label)) %>%
     mutate(label = case_when(

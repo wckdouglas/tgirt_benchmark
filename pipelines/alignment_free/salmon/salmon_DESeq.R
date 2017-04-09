@@ -61,7 +61,25 @@ fit_DESeq <- function(sample_comparison){
     return(dds)
 }
 
-salmon_df <- map_df(c('A|B','C|D'), fit_DESeq) 
-out_file_name = file.path(project_path,'/salmon_DESeq.feather')
+salmon_df <- map_df(c('A|B','C|D'), fit_DESeq)  %>%
+    mutate(map_type = 'Salmon')
+out_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes'
+out_file_name = file.path(out_path,'/salmon_DESeq.feather')
 write_feather(salmon_df, out_file_name)
 message('Written: ', out_file_name)
+
+
+# tximport kallisto abundance to gene count
+abundance_table <- str_c(out_path,'/salmon_abundance.feather')
+tximport(salmon_files_df$filename, 
+        type = "salmon", 
+        tx2gene = tx2gene, 
+        reader = read_tsv) %>%
+    .$counts %>%
+    data.frame() %>%
+    set_names(salmon_files_df$samplename) %>%
+    rownames_to_column('id') %>%
+    mutate(map_type = 'salmon') %>%
+    write_feather(abundance_table)
+message('Written: ', abundance_table)
+

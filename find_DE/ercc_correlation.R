@@ -4,27 +4,8 @@ library(readr)
 library(dplyr)
 library(cowplot)
 library(stringr)
+library(feather)
 
-
-filter_func <- function(df, label){
-    df %>%
-    gather(samplename, abundance, -id) %>%
-    inner_join(gene_file) %>%
-    group_by(samplename) %>%
-    nest() %>%
-    mutate(tpm = map(data, function(d) {
-                            d %>%
-                                mutate(per_gene_count = abundance/gene_length) %>%
-                                mutate(tpm = per_gene_count / sum(per_gene_count))
-                            }
-        )) %>%
-    unnest(tpm) %>%
-    select(samplename, id, tpm) %>%
-    mutate(prep = label) %>%
-    filter(grepl('ERCC',id))  %>%
-    dplyr::rename(abundance = tpm) %>%
-    tbl_df 
-}
 
 get_mix <- function(samplename){
     ifelse(grepl('^ref',samplename), str_sub(samplename,4,4), str_sub(samplename,8,8))
@@ -35,13 +16,11 @@ get_sample_number <- function(samplename){
     return(as.numeric(id))
 }
 
-gene_file <- '/stor/work/Lambowitz/ref/RNASeqConsortium/genes.bed' %>%
-    read_tsv(col_names=F,
-             col_type = 'ciiciccc')  %>%
-    mutate(gene_length = X3-X2) %>%
-    select(gene_length,X8) %>%
-    dplyr::rename(id=X8) %>%
-    tbl_df
+gene_file <- '/stor/work/Lambowitz/ref/human_transcriptome/transcripts.tsv'  %>%
+    read_tsv() %>%
+    select(gene_id, name,type) %>% 
+    unique %>%
+    dplyr::rename(id = gene_id)
 
 ercc_file <- '/stor/work/Lambowitz/ref/human_transcriptome/ercc_annotation.tsv' %>%
     read_tsv() %>%
@@ -49,29 +28,27 @@ ercc_file <- '/stor/work/Lambowitz/ref/human_transcriptome/ercc_annotation.tsv' 
 
 
 
-project_path <- '/stor/scratch/Lambowitz/cdw2854/bench_marking'
-kallisto_count <- project_path %>%
-    str_c('/alignment_free/countFiles/alignment_free.tsv')  %>%
-    read_tsv() %>%
-    dplyr::rename(id = target_id)  %>%
-    filter_func('Alignment Free') %>%
-    tbl_df
+#read alignment free abundance file from tximport
+project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
+alignment_free <- project_path %>%
+    file.path('DEgenes') %>%
+    list.files(path = ., pattern='abundance', full.names=T) %>%
+    map_df(read_feather) 
     
-multimap_count <- project_path %>%
-    str_c('/genome_mapping/pipeline7_counts/RAW/combined_gene_count.tsv')  %>%
-    read_tsv() %>%
-    filter_func('W/ mutlimap') %>%
-    tbl_df
+# read genome mapping count files
+files <- c(file.path(project_path, 'genome_mapping/conventional/feature_counts.tsv'),
+        file.path(project_path,'genome_mapping/pipeline7/Counts/RAW/combined_gene_count.tsv'))
+labels <- c('conventional','customized')
+genome_df <- map2(files, labels, function(x,y) read_tsv(x) %>% 
+                                                mutate(map_type=y) %>%
+                                                set_names(str_replace_all(names(.),'-','_'))) %>%
+    purrr::reduce(rbind)
 
-    
-genome_map_count <- str_c(project_path, '/genome_mapping/old_pipeline/countsData.tsv')   %>%
-    read_tsv() %>%
-    select(grep('id|ref',names(.))) %>%
-    filter_func('W/o mutlimap') %>%
-    tbl_df
-
-
-df <- purrr::reduce(list(kallisto_count, multimap_count, genome_map_count), rbind) %>%
+#merge two data frame and look at ERCC spikeins only
+df <- rbind(genome_df, alignment_free) %>%
+    gather(samplename, abundance, -id, -map_type) %>%
+    inner_join(gene_file) %>%
+    filter(type=='ERCC') %>%
     mutate(sample_mix = get_mix(samplename)) %>%
     mutate(sample_id = get_sample_number(samplename)) %>%
     inner_join(ercc_file)
@@ -86,7 +63,7 @@ ercc_lm <- ggplot(data = lm_df, aes(x = log2(conc), y = log2(abundance), color =
     geom_point(alpha=0.6) +
     geom_smooth(method='lm', formula = formula) +
     ggpmisc::stat_poly_eq(formula = formula, parse = TRUE) +
-    facet_grid(group~prep)+
+    facet_grid(group~map_type)+
     panel_border() +
     labs(x = 'log2(concentration (amol/ul))', y = 'log2(abundance (TPM or read counts)') +
     theme(legend.position = 'none')
@@ -95,14 +72,14 @@ r2_df <- lm_df %>%
     mutate(log2_abundance = log2(abundance)) %>%
     filter(!is.infinite(log2_abundance)) %>%
     mutate(log2_conc = log2(conc)) %>%
-    group_by(prep, group, sample_id) %>%
+    group_by(map_type, group, sample_id) %>%
     nest() %>%
     mutate(model = map(data, ~lm(log2_abundance~log2_conc, data=.))) %>%
     mutate(r2 = map(model, broom::glance)) %>%
     unnest(r2) %>% 
     tbl_df
 
-ercc_r2 <- ggplot(data=r2_df, aes(x = prep, color=prep, y = r.squared, shape=group)) +
+ercc_r2 <- ggplot(data=r2_df, aes(x = map_type, color=map_type, y = r.squared, shape=group)) +
     geom_jitter(size=3, width = 0.1) +
     labs(x = ' ', y = expression(R^2), parse=T, shape = 'Sample mix', color = 'Pipeline') +
     theme(axis.title.y = element_text(angle=0)) +
