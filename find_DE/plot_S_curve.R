@@ -19,30 +19,18 @@ gene_file <- '/stor/work/Lambowitz/ref/GRCh38/transcripts.tsv' %>%
 
 # read all tables ====================================================
 project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
-kallisto <- project_path %>%
-    str_c('/alignment_free/kallisto/kallisto_DESeq.feather') %>%
-    read_feather() %>%
-    mutate(map_type = 'Kallisto') %>%
-    tbl_df
-
-
-salmon <- project_path %>%
-    str_c('/alignment_free/salmon/salmon_DESeq.feather') %>%
-    read_feather() %>%
-    mutate(map_type = 'Salmon') %>%
-    tbl_df
- 
-genome_df <- project_path %>%
-    str_c('/genome_mapping/pipeline7/deseq_genome.feather') %>%
-    read_feather() %>%
-    tbl_df
-
+df <- project_path %>%
+    file.path('DEgenes') %>%
+    list.files(path = ., pattern = '.feather', full.names=T) %>%
+    .[!grepl('abundance',.)] %>%
+    map_df(read_feather)
+    
+    
 #z <- 1.43`
-fc_df <- list(kallisto, salmon, genome_df) %>%
-    purrr::reduce(rbind) %>%
+fc_df <- df %>%
     mutate(comparison = str_replace(comparison, ' vs ','')) %>%
     gather(variable, value, -id, -comparison,-map_type) %>%
-    filter(variable != 'lfcSE') %>%
+    filter(!grepl('lfcSE|stat', variable)) %>%
     mutate(variable = str_c(variable, comparison, sep='_')) %>%
     select(-comparison) %>%
     spread(variable, value) %>%

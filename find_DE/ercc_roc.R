@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 
+library(AUC)
 library(readr)
 library(dplyr)
 library(feather)
@@ -30,16 +31,27 @@ df <- file.path(project_path, 'DEgenes') %>%
     select(-sample1, -sample2,- comparison) %>%
     spread(variable, value) %>%
     inner_join(ercc_file,by='id') %>%
-    select(map_type, id, log2FoldChange_AB, group,fold, mix1,mix2, padj_AB,label) %>%
+    select(map_type, id, log2FoldChange_AB, pvalue_AB, group,fold, mix1,mix2, padj_AB,label) %>%
     mutate(log2fold = log2(fold)) %>%
     mutate(av_exp = (mix1+mix2)/2) %>%
     mutate(padj_AB = ifelse(is.na(padj_AB),1,padj_AB)) %>%
+    mutate(pvalue_AB = ifelse(is.na(pvalue_AB),1,pvalue_AB)) %>%
     mutate(error = log2FoldChange_AB-log2fold)  %>% 
     tbl_df
 
 rmse_df <- df %>% 
-    group_by(map_type)  %>%
-    summarize(rmse = sqrt(mean(error^2)))
+    filter(!is.na(error)) %>%
+    group_by(map_type, group)  %>%
+    summarize(rmse = sqrt(mean(error^2))) %>%
+    ungroup() %>%
+    mutate(y_coor = 1) %>%
+    group_by(map_type) %>%
+    do(data_frame(
+        rmse =.$rmse,
+        group = .$group,
+        y_coor = cumsum(.$y_coor)
+    )) %>%
+    ungroup()
 
 ercc_de_p<-ggplot()+
     geom_point(data=df, aes(x = log2(av_exp), 
@@ -47,56 +59,36 @@ ercc_de_p<-ggplot()+
                             color = group)) +
     geom_hline(data=df %>% select(group, log2fold),
                aes(yintercept = log2fold, color = group)) +
-    geom_text(data=rmse_df, x= 5, y = 2.5,
-              aes(label = str_c('RMSE: ',signif(rmse,3)))) +
+    geom_text(data=rmse_df, x= 10,
+              aes(label = str_c('RMSE: ',signif(rmse,3)), color = group, y = 3.5 - y_coor * 0.25)) +
     facet_grid(~map_type) +
     labs(x = 'log2(average expression)', 
          y = 'log2(Fold change between AB)', 
          color = ' ')
 
-
-
-## plotting roc curve
-roc_data <- function(p_cut, de_df){
-   de_df %>%
-        mutate(DE = ifelse(padj_AB<p_cut, 'DE','notDE')) %>%
-        group_by(map_type,DE,label) %>%
-        summarize(count = n())  %>%
-        ungroup() %>%
-        mutate(p = p_cut) 
-}
-
 # 23 non DE in ERCC, 69 DE
-roc_df <- df %>% 
+ercc_roc_df <- df %>% 
     mutate(padj_AB = ifelse(is.na(padj_AB),1,padj_AB)) %>%
-    map_df(seq(0,1,0.001), roc_data,.) %>%
-    mutate(label = str_c(DE,'-',label)) %>%
-    mutate(label = case_when(
-                    .$label == 'notDE-DE' ~ 'FN',
-                    .$label == 'notDE-notDE' ~ 'TN',
-                    .$label == 'DE-DE' ~ 'TP',
-                    .$label == 'DE-notDE' ~ 'FP'
-    )) %>%
-    select(-DE) %>%
-    spread(label,count, fill=0)%>%
-    mutate(TPR = TP/(TP+FN)) %>%
-    mutate(FPR = FP/(TN+FP)) %>%
-    mutate(slope = TPR/FPR) %>%
-    tbl_df
-
-label_df <-  roc_df %>% 
+    mutate(pvalue_AB = ifelse(is.na(pvalue_AB),1,pvalue_AB)) %>%
+    mutate(label = factor(ifelse(label =='DE', 0,1))) %>%
     group_by(map_type) %>%
-    top_n(1,slope) %>%
-    do(head(.,1)) %>%
-    ungroup() %>%
-    mutate(label = str_c('p = ',signif(p,3))) %>%
-    tbl_df
+    nest() %>%
+    mutate(roc_model = map(data, ~AUC::roc(.$padj_AB, .$label))) %>%
+    mutate(tpr = map(roc_model, ~.$tpr)) %>%
+    mutate(fpr = map(roc_model, ~.$fpr))
 
-roc_p <- ggplot(data=roc_df, aes(x = FPR, y = TPR, color = map_type)) +
-    geom_point() +
+auc_df <- ercc_roc_df %>%
+    mutate(auc = map_dbl(roc_model, AUC::auc)) %>%
+    select(map_type, auc) %>%
+    mutate(auc = signif(auc,3))
+
+roc_df <- ercc_roc_df %>%
+    unnest(tpr, fpr) %>%
+    inner_join(auc_df) %>%
+    mutate(map_type = str_c(map_type, ' (AUC: ',auc,')'))
+
+roc_p <- ggplot(data=roc_df, aes(x = fpr, y = tpr, color = map_type)) +
     geom_line()+
-    ggrepel::geom_label_repel(data=label_df, 
-                              aes(x = FPR, y = TPR, label = label, color = map_type)) +
     labs(x = 'False positive rate', y = 'True positive rate', color = ' ') +
     theme(legend.position = c(0.75,0.25)) +
     geom_abline(slope = 1, intercept = 0)

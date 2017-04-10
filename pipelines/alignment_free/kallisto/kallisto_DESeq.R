@@ -18,7 +18,10 @@ gene_file <- '/stor/work/Lambowitz/ref/human_transcriptome/transcripts.tsv' %>%
 
 tx2gene <- gene_file %>%
     select(target_id, gene_id) %>%
-    set_names(c('TXNAME','GENEID'))
+    set_names(c('TXNAME','GENEID')) %>%
+    mutate(TXNAME=str_replace(TXNAME,'\\.[0-9]+$','')) %>%
+    unique() %>%
+    filter(!duplicated(TXNAME))
 
 # make sample file and annotations
 project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/alignment_free/kallisto/countFiles'
@@ -33,22 +36,22 @@ kallisto_files_df <-  list.files(project_path, pattern = '[1-3]$') %>%
 
 # fit deseq to selected samples (A vs B ['AB']and C vs D ['CD'])
 fit_DESeq <- function(sample_comparison){
-    kallisto_files_df <- filter(kallisto_files_df, grepl(sample_comparison,mix))
-    kallisto_files <- kallisto_files_df$filename
-    names(kallisto_files) <- kallisto_files_df$samplename
+    kallisto_subset_df <- filter(kallisto_files_df, grepl(sample_comparison,mix))
+    kallisto_files <- kallisto_subset_df$filename
+    names(kallisto_files) <- kallisto_subset_df$samplename
 
     # condition data frame for deseq2
-    cond_df <- kallisto_files_df %>%
+    cond_df <- kallisto_subset_df %>%
         select(mix, samplename) %>%
         mutate(mix =  factor(mix,levels = rev(unique(mix))))  %>%
         data.frame()
-    rownames(cond_df) = cond_df$samplename
 
     # tximport kallisto abundance to gene count
     kallisto_df <- tximport(kallisto_files, 
                         type = "kallisto", 
                         tx2gene = tx2gene, 
                         reader = read_tsv)
+    rownames(cond_df) = colnames(kallisto_df$counts)
 
     # run deseq2 on tximport table
     dds <- DESeqDataSetFromTximport(kallisto_df, cond_df, ~mix) %>%

@@ -11,14 +11,16 @@ library(feather)
 library(DESeq2)
 
 # read gene table
-gene_file <- '/stor/work/Lambowitz/ref/GRCh38/transcripts.tsv' %>%
+gene_file <- '/stor/work/Lambowitz/ref/human_transcriptome/transcripts.tsv' %>%
     read_tsv()  %>%
     dplyr::rename(target_id=t_id) %>%
     tbl_df
 
 tx2gene <- gene_file %>%
     select(target_id, gene_id) %>%
-    set_names(c('TXNAME','GENEID'))
+    set_names(c('TXNAME','GENEID')) %>%
+    unique() %>%
+    filter(!duplicated(TXNAME))
 
 # make sample file and annotations
 project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/alignment_free/salmon'
@@ -33,22 +35,22 @@ salmon_files_df <-  list.files(project_path, pattern = '[1-3]$') %>%
 
 # fit deseq to selected samples (A vs B ['AB']and C vs D ['CD'])
 fit_DESeq <- function(sample_comparison){
-    salmon_files_df <- filter(salmon_files_df, grepl(sample_comparison,mix))
-    salmon_files <- salmon_files_df$filename
-    names(salmon_files) <- salmon_files_df$samplename
+    salmon_subset_df <- filter(salmon_files_df, grepl(sample_comparison,mix))
+    salmon_files <- salmon_subset_df$filename
+    names(salmon_files) <- salmon_subset_df$samplename
     
     # condition data frame for deseq2
-    cond_df <- salmon_files_df %>%
+    cond_df <- salmon_subset_df %>%
         select(mix, samplename) %>%
         mutate(mix =  factor(mix,levels = rev(unique(mix))))  %>%
         data.frame()
-    rownames(cond_df) = cond_df$samplename
     
     # tximport salmon abundance to gene count
     salmon_df <- tximport(salmon_files, 
                             type = "salmon", 
                             tx2gene = tx2gene, 
                             reader = read_tsv)
+    rownames(cond_df) = colnames(salmon_df$counts)
     
     # run deseq2 on tximport table
     dds <- DESeqDataSetFromTximport(salmon_df, cond_df, ~mix) %>%
