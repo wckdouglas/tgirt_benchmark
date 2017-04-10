@@ -1,19 +1,22 @@
 #!/usr/bin/evn Rscript
 
+library(pROC)
 library(feather)
 library(stringr)
 library(readr)
 library(dplyr)
 library(tidyr)
 library(cowplot)
-library(AUC)
 library(purrr)
 
-taqman <- '/stor/scratch/Lambowitz/cdw2854/bench_marking/maqc/taqman_fc_table.feather' %>%
+taqman <- '/stor/work/Lambowitz/cdw2854/bench_marking/maqc/taqman_fc_table.feather' %>%
     read_feather() %>%
     dplyr::rename(id = ensembl_gene_id) %>%
-    mutate(real_FC = ifelse(abs(logFC_AB)>0.5, 'DE','notDE')) %>%
-    rename(taqman_fc_AB = logFC_AB)
+    mutate(real_FC_AB = ifelse(abs(logFC_AB)>0.5, 'DE','notDE')) %>%
+    mutate(real_FC_CD = ifelse(abs(logFC_CD)>0.5, 'DE','notDE')) %>%
+    rename(taqman_fc_AB = logFC_AB) %>%
+    rename(taqman_fc_CD = logFC_CD) %>%
+    dplyr::select(id, real_FC_AB, real_FC_CD, taqman_fc_AB, taqman_fc_CD)
 
 # read all tables ====================================================
 project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
@@ -23,55 +26,44 @@ df <- project_path %>%
     .[!grepl('abundance',.)] %>%
     map_df(read_feather) %>%
     gather(variable, value, -id, -map_type, - comparison) %>%
-    filter(grepl('pvalue|padj|baseMean|log2FoldChange', variable)) %>%
-    mutate(sample1 = str_sub(comparison, 1, 1)) %>%
-    mutate(sample2 = str_sub(comparison, 6, 6)) %>%
-    mutate(variable = str_c(variable,'_', sample1, sample2)) %>%
-    select(-sample1, -sample2,- comparison) %>%
+    filter(grepl('pvalue', variable)) %>%
+    mutate(comparison = str_replace(comparison,' vs ','')) %>%
     spread(variable, value) %>%
-    inner_join(taqman)
+    inner_join(taqman) %>%
+    mutate(real_FC = ifelse(comparison=='CD',real_FC_CD, real_FC_AB)) %>%
+    tbl_df
+    
 
-## plotting roc curve
-roc_data <- function(p_cut, de_df){
-    de_df %>%
-        mutate(DE = ifelse(pvalue_AB<p_cut, 'DE','notDE')) %>%
-        group_by(map_type,DE, real_FC) %>%
-        summarize(count = n())  %>%
-        ungroup() %>%
-        mutate(p = p_cut) 
-}
 # 23 non DE in ERCC, 69 DE
 roc_df <- df %>% 
-    mutate(pvalue_AB = ifelse(is.na(pvalue_AB),1,pvalue_AB)) %>%
-    mutate(label = factor(ifelse(real_FC=='DE',0,1))) %>%
+    mutate(pvalue = ifelse(is.na(pvalue),1,pvalue)) %>%
     group_by(map_type) %>%
     nest() %>%
-    mutate(roc_model = map(data, ~AUC::roc(.$padj_AB, .$label))) %>%
-    mutate(tpr = map(roc_model, ~.$tpr)) %>%
-    mutate(fpr = map(roc_model, ~.$fpr))
+    mutate(roc_model = map(data, ~pROC::roc(.$real_FC, .$pvalue))) %>%
+    mutate(tpr = map(roc_model, ~.$sensitivities)) %>%
+    mutate(fpr = map(roc_model, ~1 - .$specificities))
     
 AUC_df <- roc_df %>%
-    mutate(auc = map_dbl(roc_model, AUC::auc))%>%
-    select(auc, map_type) %>%
+    mutate(auc = map_dbl(roc_model, pROC::auc))%>%
+    dplyr::select(auc, map_type) %>%
     mutate(auc = signif(auc,3)) 
     
 
 roc_plot_df <- roc_df %>%
     unnest(tpr, fpr) %>%
     inner_join(AUC_df) %>%
-    mutate(map_type = str_c(map_type, ' (AUC: ',auc,')'))
-
-    
+    mutate(map_type = str_c(map_type, ' (AUC: ',auc,')')) %>%
+    arrange(tpr)
 
 gene_roc_p <- ggplot(data=roc_plot_df, aes(x = fpr, y = tpr, color = map_type)) +
     geom_line()+
     labs(x = 'False positive rate', y = 'True positive rate', color = ' ') +
-    theme(legend.position = c(0.75,0.25)) +
+    theme(legend.position = c(0.5,0.25)) +
     geom_abline(slope = 1, intercept = 0)
 
 
 rmsd_df <- df %>%
-    select(map_type, log2FoldChange_AB, taqman_fc_AB) %>%
+    dplyr::select(map_type, log2FoldChange_AB, taqman_fc_AB) %>%
     mutate(sq_error = (log2FoldChange_AB - taqman_fc_AB)^2) %>%
     group_by(map_type) %>%
     summarize(rmse = sqrt(mean(sq_error, na.rm=T))) %>%
@@ -85,6 +77,6 @@ rmse_bar <- ggplot(data=rmsd_df, aes(x = map_type, y = rmse, fill=map_type)) +
 p <- plot_grid(rmse_bar, gene_roc_p)
 figurepath <- str_c(project_path, '/figures')
 figurename <- str_c(figurepath, '/taqman_roc.png')
-save_plot(p, file=figurename,  base_width=10, base_height=10) 
+save_plot(p, file=figurename,  base_width=12, base_height=8) 
 message('Written: ', figurename)
     

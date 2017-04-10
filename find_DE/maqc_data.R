@@ -38,7 +38,7 @@ column_label <- gset@phenoData@data$title
 maqc_expr_data <- gset@assayData$exprs %>%
     tbl_df %>%
     set_names(as.character(column_label)) %>%
-    dplyr::select(grep('[AB][0-9]$',names(.))) %>%
+    dplyr::select(grep('[ABCD][0-9]$',names(.))) %>%
     mutate(refseq_mrna = probe_table$GB_LIST) %>%
     gather(exp_sample, expr_value,-refseq_mrna) %>%
     mutate(sample_mix = str_sub(exp_sample,12,12)) %>%
@@ -48,7 +48,8 @@ maqc_expr_data <- gset@assayData$exprs %>%
     ungroup() %>%
     inner_join(id_conversions) %>%
     spread(sample_mix, expr_value) %>%
-    mutate(logFC_AB=log2(B/A)) 
+    mutate(logFC_AB=log2(B/A)) %>%
+    mutate(logFC_CD=log2(D/C))
 expr_data <- str_c(work_path, '/taqman_fc_table.feather')
 write_feather(maqc_expr_data,expr_data)
 message('Written: ', expr_data)

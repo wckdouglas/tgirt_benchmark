@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-library(AUC)
+library(pROC)
 library(readr)
 library(dplyr)
 library(feather)
@@ -70,15 +70,14 @@ ercc_de_p<-ggplot()+
 ercc_roc_df <- df %>% 
     mutate(padj_AB = ifelse(is.na(padj_AB),1,padj_AB)) %>%
     mutate(pvalue_AB = ifelse(is.na(pvalue_AB),1,pvalue_AB)) %>%
-    mutate(label = factor(ifelse(label =='DE', 0,1))) %>%
     group_by(map_type) %>%
     nest() %>%
-    mutate(roc_model = map(data, ~AUC::roc(.$padj_AB, .$label))) %>%
-    mutate(tpr = map(roc_model, ~.$tpr)) %>%
-    mutate(fpr = map(roc_model, ~.$fpr))
+    mutate(roc_model = map(data, ~pROC::roc(.$label,.$padj_AB))) %>%
+    mutate(tpr = map(roc_model, ~.$sensitivities)) %>%
+    mutate(fpr = map(roc_model, ~1 - .$specificities))
 
 auc_df <- ercc_roc_df %>%
-    mutate(auc = map_dbl(roc_model, AUC::auc)) %>%
+    mutate(auc = map_dbl(roc_model, pROC::auc)) %>%
     select(map_type, auc) %>%
     mutate(auc = signif(auc,3))
 
@@ -87,7 +86,7 @@ roc_df <- ercc_roc_df %>%
     inner_join(auc_df) %>%
     mutate(map_type = str_c(map_type, ' (AUC: ',auc,')'))
 
-roc_p <- ggplot(data=roc_df, aes(x = fpr, y = tpr, color = map_type)) +
+roc_p <- ggplot(data=roc_df %>% arrange(tpr), aes(x = fpr, y = tpr, color = map_type)) +
     geom_line()+
     labs(x = 'False positive rate', y = 'True positive rate', color = ' ') +
     theme(legend.position = c(0.75,0.25)) +
