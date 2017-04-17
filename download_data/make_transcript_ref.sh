@@ -4,6 +4,7 @@
 #tRNA.fa comes from jun
 
 REF_PATH=/stor/work/Lambowitz/ref
+REF_PATH=${REF}
 TRANSCRIPTOME=$REF_PATH/human_transcriptome
 ENSEMBL_TRANSCRIPT=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
 ENSEMBL_NON_CODING=ftp://ftp.ensembl.org/pub/release-88/fasta/homo_sapiens/ncrna/Homo_sapiens.GRCh38.ncrna.fa.gz
@@ -34,7 +35,7 @@ gi|555853|gb|U13369.1|HSU13369  7935    12969   28S_rRNA        0       +       
 #Download transcripts and merge tRNA
 curl $ENSEMBL_TRANSCRIPT > $TRANSCRIPTOME/ensembl_cDNA.fa.gz
 curl $ENSEMBL_NON_CODING > $TRANSCRIPTOME/ensembl_ncrna.fa.gz
-zcat $TRANSCRIPTOME/transcriptome.fa.gz \
+zcat $TRANSCRIPTOME/ensembl_cDNA.fa.gz \
 		$TRANSCRIPTOME/ensembl_ncrna.fa.gz \
 	| python correct_transcriptome_id.py \
 	| tee $TRANSCRIPTOME/ensembl_transcripts.fa \
