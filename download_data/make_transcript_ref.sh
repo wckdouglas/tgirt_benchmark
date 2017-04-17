@@ -4,6 +4,7 @@
 #tRNA.fa comes from jun
 
 REF_PATH=/stor/work/Lambowitz/ref
+REF_PATH=${REF}
 TRANSCRIPTOME=$REF_PATH/human_transcriptome
 ENSEMBL_TRANSCRIPT=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
 ENSEMBL_NON_CODING=ftp://ftp.ensembl.org/pub/release-88/fasta/homo_sapiens/ncrna/Homo_sapiens.GRCh38.ncrna.fa.gz

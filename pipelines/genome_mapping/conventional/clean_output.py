@@ -8,6 +8,7 @@ count_path = '/scratch/02727/cdw2854/bench_marking/genome_mapping/pipeline7/conv
 df = pd.read_table(count_path + '/counts.tsv',
         skiprows=1) 
 df.columns = map(lambda x: os.path.basename(x.replace('/Hisat/hisat.bam','')), df.columns)
+df.columns = map(lambda x: x.replace('-','_'), df.columns)
 df.drop(['Chr','Start','End','Strand','Length'], axis=1, inplace=True)
 df.rename(columns = {'Geneid':'id'},inplace=True)
 colnames = sorted(df.columns)
