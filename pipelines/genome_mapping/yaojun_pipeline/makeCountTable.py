@@ -22,7 +22,7 @@ def readSample(count_file_path, tRNA_count_path, sample_id):
     print 'Running %s' %sample_id
     df = readDF(count_file_path + '/' + sample_id + '.counts') \
         .pipe(lambda d: d[['id','count']])
-    tRNA_df = read_tRNA(tRNA_count_path + '/' + sample_id + '.anti')
+    tRNA_df = read_tRNA(tRNA_count_path + '/' + sample_id + '.tRNA')
     df = pd.concat([df, tRNA_df],axis=0) \
         .assign(sample_name = sample_id.replace('-','_'))
     return df
@@ -31,7 +31,7 @@ def main():
     work = os.environ['WORK']
     count_path = work + '/cdw2854/bench_marking/genome_mapping/pipeline7/Counts'
     count_file_path = count_path + '/RAW'
-    tRNA_count_path = count_path + '/tRNA_anti'
+    tRNA_count_path = count_path + '/tRNA_RAW'
     count_files = glob.glob(count_file_path + '/*counts')
     sample_ids = set(map(lambda x: x.split('/')[-1].split('.')[0], count_files))
     dfFunc = partial(readSample, count_file_path, tRNA_count_path)

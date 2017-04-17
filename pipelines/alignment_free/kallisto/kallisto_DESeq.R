@@ -78,7 +78,8 @@ abundance_table <- str_c(out_path,'/kallisto_abundance.feather')
 kallisto_df <- tximport(kallisto_files_df$filename, 
                         type = "kallisto", 
                         tx2gene = tx2gene, 
-                        reader = read_tsv) %>%
+                        reader = read_tsv,
+                        countsFromAbundance='lengthScaledTPM') %>%
     .$counts %>%
     data.frame() %>%
     set_names(kallisto_files_df$samplename) %>%

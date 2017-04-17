@@ -7,7 +7,7 @@ import re
 work_path = os.environ['WORK']
 scratch_path = os.environ['SCRATCH']
 gene_file = os.environ['REF'] + '/RNASeqConsortium/genes.SAF'
-project_path = scratch_path + '/bench_marking/genome_mapping/pipeline7'
+project_path = work_path + '/cdw2854/bench_marking/genome_mapping/pipeline7'
 count_path = project_path + '/conventional'
 if not os.path.isdir(count_path):
     os.mkdir(count_path)
@@ -23,7 +23,6 @@ feature_count_command = 'featureCounts -a %s ' %(gene_file) +\
                         '-s 1 ' +\
                         '-M ' +\
                         '-T 24 '+\
-                        '-R ' +\
                         '--largestOverlap ' +\
                         '--minOverlap 10 '+ \
                         '--primary '+\

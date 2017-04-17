@@ -7,7 +7,7 @@ REF_PATH=/stor/work/Lambowitz/ref
 TRANSCRIPTOME=$REF_PATH/human_transcriptome
 ENSEMBL_TRANSCRIPT=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
 ENSEMBL_NON_CODING=ftp://ftp.ensembl.org/pub/release-88/fasta/homo_sapiens/ncrna/Homo_sapiens.GRCh38.ncrna.fa.gz
-ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.gtf.gz
+ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.chr_patch_hapl_scaff.gtf.gz
 
 
 #Download ERCC
@@ -48,6 +48,18 @@ cat $TRANSCRIPTOME/ensembl_transcripts.fa \
 python tRNA_fai2table.py $TRANSCRIPTOME/tRNA.fa >> $OUT_FILE
 awk '{print $1,$1,$1,"ERCC"}' OFS='\t' $TRANSCRIPTOME/ercc.bed >> $OUT_FILE
 awk -F'\t' '{print $1,$4,$1,"rRNA"}' OFS='\t' $TRANSCRIPTOME/rRNA.bed >> $OUT_FILE
+awk -F'\t' '{print $NF,$4,$4,"tRNA"}' OFS='\t' $TRANSCRIPTOME/tRNA.bed >> $OUT_FILE
 
 bowtie2-build $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/tRNA
 bowtie2-build $TRANSCRIPTOME/rRNA.fa $TRANSCRIPTOME/rRNA
+
+
+## Download GTF and append tRNA, rRNA, ERCC bed record
+curl $ENSEMBL_GTF  \
+	| zcat \
+	| grep -v 'gene_biotype "TEC"' \
+	> $TRANSCRIPTOME/genes.gtf 
+python bed_to_gtf.py $TRANSCRIPTOME/rRNA.bed >> $TRANSCRIPTOME/genes.gtf
+python bed_to_gtf.py $TRANSCRIPTOME/ercc.bed >> $TRANSCRIPTOME/genes.gtf
+python bed_to_gtf.py $TRANSCRIPTOME/tRNA.bed >> $TRANSCRIPTOME/genes.gtf
+	

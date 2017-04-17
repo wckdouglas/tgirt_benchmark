@@ -76,7 +76,8 @@ abundance_table <- str_c(out_path,'/salmon_abundance.feather')
 tximport(salmon_files_df$filename, 
         type = "salmon", 
         tx2gene = tx2gene, 
-        reader = read_tsv) %>%
+        reader = read_tsv,
+        countsFromAbundance='lengthScaledTPM') %>%
     .$counts %>%
     data.frame() %>%
     set_names(salmon_files_df$samplename) %>%
