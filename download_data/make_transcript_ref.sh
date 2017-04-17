@@ -34,7 +34,7 @@ gi|555853|gb|U13369.1|HSU13369  7935    12969   28S_rRNA        0       +       
 #Download transcripts and merge tRNA
 curl $ENSEMBL_TRANSCRIPT > $TRANSCRIPTOME/ensembl_cDNA.fa.gz
 curl $ENSEMBL_NON_CODING > $TRANSCRIPTOME/ensembl_ncrna.fa.gz
-zcat $TRANSCRIPTOME/transcriptome.fa.gz \
+zcat $TRANSCRIPTOME/ensembl_cDNA.fa.gz \
 		$TRANSCRIPTOME/ensembl_ncrna.fa.gz \
 	| python correct_transcriptome_id.py \
 	| tee $TRANSCRIPTOME/ensembl_transcripts.fa \
