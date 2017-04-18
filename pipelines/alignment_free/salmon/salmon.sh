@@ -13,7 +13,7 @@ for R1 in ${DATAPATH}/*R1_001.fastq.gz
 do
 	R2=${R1/R1/R2}
 	SAMPLENAME=$(basename ${R1%_R1_001.fastq.gz})
-	echo salmon quant \
+	echo time salmon quant \
 		--seqBias --gcBias \
 		--index $INDEX --libType ISF \
 		--writeMappings  \

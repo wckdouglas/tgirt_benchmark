@@ -8,6 +8,7 @@ work_path = os.environ['WORK']
 scratch_path = os.environ['SCRATCH']
 gene_file = os.environ['REF'] + '/human_transcriptome/genes.gtf'
 project_path = work_path + '/cdw2854/bench_marking/genome_mapping/stringtie'
+project_path = scratch_path + '/bench_marking/genome_mapping/stringtie'
 bam_path = project_path + '/bam_files' 
 count_path = project_path + '/counts'
 if not os.path.isdir(count_path):
