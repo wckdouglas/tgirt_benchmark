@@ -41,9 +41,10 @@ changeType <- function(x){
 }
 
 
-tpm <- function(counts, lengths) {
+count_to_tpm <- function(counts, lengths) {
     rate <- counts / lengths
-    rate / sum(rate) * 1e6
+    out_tpm <- rate / sum(rate,na.rm=T) * 1e6
+    return(out_tpm)
 }
 
 
@@ -63,10 +64,11 @@ gene_file <- '/stor/work/Lambowitz/ref/human_transcriptome/transcripts.tsv'  %>%
     unique %>%
     dplyr::rename(id = gene_id) %>%
     mutate(type = sapply(type,changeType)) %>%
+    mutate(type= ifelse(grepl('MT-T',name),'tRNA',type)) %>%
     tbl_df
 
 gene_length_df <- '/stor/work/Lambowitz/ref/human_transcriptome/genes.length' %>%
-    read_tsv
+    read_tsv 
  
 
 #read alignment free abundance file from tximport
@@ -74,7 +76,9 @@ project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
 alignment_free <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern='abundance', full.names=T) %>%
-    map_df(read_feather) 
+    map_df(read_feather)  %>%
+    gather(samplename, abundance, -id, -map_type) %>%
+    tbl_df
 
 # read genome mapping count files
 files <- c(file.path(project_path, 'genome_mapping/conventional/feature_counts.tsv'),
@@ -82,14 +86,22 @@ files <- c(file.path(project_path, 'genome_mapping/conventional/feature_counts.t
 labels <- c('conventional','customized')
 genome_df <- map2(files, labels, function(x,y) read_tsv(x) %>% 
                       mutate(map_type=y) %>%
+                      mutate(id = str_replace(id, '-[0-9]+$','')) %>%
                       set_names(str_replace_all(names(.),'-','_'))) %>%
     purrr::reduce(rbind) %>%
+    inner_join(gene_length_df) %>%
     mutate(id = ifelse(grepl('^TR|NM|MT',id), str_replace(id,'[0-9]+$','') ,id)) %>%
+    gather(samplename, abundance, -id,-map_type, -gene_length) %>%
+    mutate(tpm = count_to_tpm(abundance, gene_length)) %>%
+    select(-abundance, - gene_length) %>%
+    dplyr::rename(abundance=tpm) %>%
     tbl_df
 
-df <- rbind(genome_df, alignment_free) %>%
-    gather(samplename, abundance, -id, -map_type) %>%
+merge_df <- rbind(genome_df, alignment_free) %>%
     inner_join(gene_file) %>%
+    tbl_df
+    
+df <- merge_df %>%
     group_by(type, map_type, samplename) %>%
     summarize(read_count = sum(abundance)) %>%
     ungroup() %>%
@@ -118,3 +130,17 @@ dist_p <-ggplot(data = df, aes(x=x_name, y = percentage_count, fill=type)) +
     facet_grid(map_type~mix, scale='free_x') +
     scale_fill_manual(values = RColorBrewer::brewer.pal(12,'Set3'))
     
+
+plot_pairs <- function(rna_type){
+    p <- merge_df %>% 
+        filter(grepl('Sample_A',samplename)) %>%
+        filter(grepl(rna_type,type)) %>% 
+        group_by(map_type, id) %>%
+        summarize(abundance = log2(mean(abundance)+1)) %>%
+        ungroup()  %>%
+        spread(map_type, abundance) %>%
+        select(-id) %>% 
+        GGally::ggpairs()
+}
+
+ps <- lapply(c('tRNA','snoRNA','Protein'),plot_pairs)

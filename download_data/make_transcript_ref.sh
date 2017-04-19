@@ -10,6 +10,14 @@ ENSEMBL_TRANSCRIPT=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/cdna/
 ENSEMBL_NON_CODING=ftp://ftp.ensembl.org/pub/release-88/fasta/homo_sapiens/ncrna/Homo_sapiens.GRCh38.ncrna.fa.gz
 ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.chr_patch_hapl_scaff.gtf.gz
 
+#download tRNA
+tRNA_PATH=$TRANSCRIPTOME/tRNA
+mkdir -p $tRNA_PATH
+curl -o $tRNA_PATH/hg38-tRNAs.tar.gz http://gtrnadb.ucsc.edu/GtRNAdb2/genomes/eukaryota/Hsapi38/hg38-tRNAs.tar.gz 
+tar zxvf $tRNA_PATH/hg38-tRNAs.tar.gz --directory $tRNA_PATH
+python scrape_tRNA_name.py $tRNA_PATH
+
+
 
 #Download ERCC
 ERCC_annotation=https://tools.thermofisher.com/content/sfs/manuals/cms_095046.txt

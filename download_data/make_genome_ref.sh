@@ -9,9 +9,10 @@ TRANSCRIPTOME_PATH=$REF/human_transcriptome
 
 #get gene annotations
 Rscript get_gene_bed.R $REF_PATH/genes.bed
-cat $REF_PATH/tRNA.bed  \
-	$TRANSCRIPTOME_PATH/rRNA.bed \
-	$TRANSCRIPTOME_PATH/ercc.bed >> $REF_PATH/genes.bed
+awk '{print $1,$2,$3,$4,$5,$6,$7,$4}' OFS='\t' $TRANSCRIPTOME_PATH/tRNA_xlsx.bed  \
+	| cat $TRANSCRIPTOME_PATH/rRNA.bed \
+		$TRANSCRIPTOME_PATH/ercc.bed - \
+	>> $REF_PATH/genes.bed
 echo 'GeneID\tchr\tstart\tend\tstrand' > $REF_PATH/genes.SAF
 awk '{print $NF,$1,$2,$3,$6}' OFS='\t' $REF_PATH/genes.bed >> $REF_PATH/genes.SAF
 Rscript check_ref.R
