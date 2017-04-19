@@ -69,7 +69,13 @@ cat $TRANSCRIPTOME/ensembl_transcripts.fa \
 python tRNA_fai2table.py $TRANSCRIPTOME/tRNA.fa >> $OUT_FILE
 awk '{print $1,$1,$1,"ERCC"}' OFS='\t' $TRANSCRIPTOME/ercc.bed >> $OUT_FILE
 awk -F'\t' '{print $1,$4,$1,"rRNA"}' OFS='\t' $TRANSCRIPTOME/rRNA.bed >> $OUT_FILE
-awk -F'\t' '{print $NF,$4,$4,"tRNA"}' OFS='\t' $TRANSCRIPTOME/tRNA.bed >> $OUT_FILE
+cat $TRANSCRIPTOME/tRNA.fa \
+	| grep '>' \
+	| sed 's/>//g' \
+	| awk '{print $1,$1}' OFS='\t' \
+	| sed -E 's/[0-9]+\-[0-9]+$//g' \
+	| awk '{print $2,$2,$1,"tRNA"}' OFS='\t'  \
+	>> $OUT_FILE
 
 bowtie2-build $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/tRNA
 bowtie2-build $TRANSCRIPTOME/rRNA.fa $TRANSCRIPTOME/rRNA
