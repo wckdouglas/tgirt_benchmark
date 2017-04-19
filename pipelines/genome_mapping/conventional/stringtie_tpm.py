@@ -19,6 +19,7 @@ for bam_file in bam_files:
     samplename = os.path.basename(bam_file).split('.')[0]
     command = 'stringtie -p 12 '+\
             '-G %s ' %(gene_file)+\
+            '-e '+\
             '-o %s/%s.gtf ' %(count_path, samplename) +\
             '-A %s/%s.gene_counts ' %(count_path, samplename) +\
             '%s ' %(bam_file)
