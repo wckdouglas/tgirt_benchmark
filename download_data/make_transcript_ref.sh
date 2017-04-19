@@ -10,14 +10,14 @@ ENSEMBL_TRANSCRIPT=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/cdna/
 ENSEMBL_NON_CODING=ftp://ftp.ensembl.org/pub/release-88/fasta/homo_sapiens/ncrna/Homo_sapiens.GRCh38.ncrna.fa.gz
 ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.chr_patch_hapl_scaff.gtf.gz
 
-#download tRNA
-tRNA_PATH=$TRANSCRIPTOME/tRNA
-mkdir -p $tRNA_PATH
-curl -o $tRNA_PATH/hg38-tRNAs.tar.gz http://gtrnadb.ucsc.edu/GtRNAdb2/genomes/eukaryota/Hsapi38/hg38-tRNAs.tar.gz 
-tar zxvf $tRNA_PATH/hg38-tRNAs.tar.gz --directory $tRNA_PATH
-python scrape_tRNA_name.py $tRNA_PATH
-
-
+#Download rRNA
+python get_rRNA_fa.py > $TRANSCRIPTOME/rRNA.fa
+echo 'gi|23898|emb|X12811.1|  274     394     5S_rRNA 0       +       5S_rRNA 5S_rRNA
+gi|555853|gb|U13369.1|HSU13369  3657    5527    18S_rRNA        0       +       18S_rRNA        18S_rRNA
+gi|555853|gb|U13369.1|HSU13369  6623    6779    5.8S_rRNA       0       +       5.8S_rRNA       5.8S_rRNA
+gi|555853|gb|U13369.1|HSU13369  7935    12969   28S_rRNA        0       +       28S_rRNA        28S_rRNA' \
+	| awk '{print $1,$2,$3,$4,$5,$6,"rDNA",$8}' OFS='\t' \
+	> $TRANSCRIPTOME/rRNA.bed
 
 #Download ERCC
 ERCC_annotation=https://tools.thermofisher.com/content/sfs/manuals/cms_095046.txt
@@ -31,14 +31,26 @@ cat $TRANSCRIPTOME/ercc.fa \
    | awk '{print $1,0,length($2),$1,0,"+","ERCC",$1}' OFS='\t' \
    > $TRANSCRIPTOME/ercc.bed
 
-#Download ERCC
-python get_rRNA.py $TRANSCRIPTOME/rRNA
-echo 'gi|23898|emb|X12811.1|  274     394     5S_rRNA 0       +       5S_rRNA 5S_rRNA
-gi|555853|gb|U13369.1|HSU13369  3657    5527    18S_rRNA        0       +       18S_rRNA        18S_rRNA
-gi|555853|gb|U13369.1|HSU13369  6623    6779    5.8S_rRNA       0       +       5.8S_rRNA       5.8S_rRNA
-gi|555853|gb|U13369.1|HSU13369  7935    12969   28S_rRNA        0       +       28S_rRNA        28S_rRNA' \
-	| awk '{print $1,$2,$3,$4,$5,$6,"rDNA",$8}' OFS='\t' \
-	> $TRANSCRIPTOME/rRNA.bed
+#download gene annotation
+Rscript get_gene_bed.R $TRANSCRIPTOME/genes.bed
+cat $TRANSCRIPTOME/rRNA.bed >> $TRANSCRIPTOME/genes.bed
+cat $TRANSCRIPTOME/ercc.bed >> $TRANSCRIPTOME/genes.bed
+
+#download tRNA
+tRNA_PATH=$TRANSCRIPTOME/tRNA
+mkdir -p $tRNA_PATH
+curl -o $tRNA_PATH/hg38-tRNAs.tar.gz http://gtrnadb.ucsc.edu/GtRNAdb2/genomes/eukaryota/Hsapi38/hg38-tRNAs.tar.gz 
+tar zxvf $tRNA_PATH/hg38-tRNAs.tar.gz --directory $tRNA_PATH
+python scrape_tRNA_name.py $tRNA_PATH
+python make_tRNA_fasta.py $tRNA_PATH > $TRANSCRIPTOME/tRNA.fa
+cat $tRNA_PATH/hg38_tRNA.info | sed 1d > $TRANSCRIPTOME/tRNA.bed 
+cat $TRANSCRIPTOME/tRNA.bed >> $TRANSCRIPTOME/genes.bed
+cat $TRANSCRIPTOME/genes.bed \
+	| grep 'Mt_tRNA' \
+	| bedtools getfasta  -fi $REF_PATH/RNASeqConsortium/reference.fasta.fa -bed - -s -name -tab \
+	| tr ':' '\t' \
+	| awk '{printf ">%s\n%s\n",$1,$NF}' \
+	>> $TRANSCRIPTOME/tRNA.fa
 
 #Download transcripts and merge tRNA
 curl $ENSEMBL_TRANSCRIPT > $TRANSCRIPTOME/ensembl_cDNA.fa.gz
