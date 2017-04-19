@@ -17,6 +17,7 @@ bam_files = glob.glob(bam_path + '/*.bam')
 
 for bam_file in bam_files:
     samplename = os.path.basename(bam_file).split('.')[0]
+    result_path = 
     command = 'stringtie -p 12 '+\
             '-G %s ' %(gene_file)+\
             '-e '+\

@@ -2,13 +2,14 @@
 
 library("BiocParallel")
 register(MulticoreParam(12))
+library(DESeq2)
 library(readr)
 library(stringr)
 library(purrr)
 library(dplyr)
+library(tibble)
 library(tximport)
 library(feather)
-library(DESeq2)
 
 # read gene table
 gene_file <- '/stor/work/Lambowitz/ref/human_transcriptome/transcripts.tsv' %>%
@@ -80,7 +81,7 @@ kallisto_df <- tximport(kallisto_files_df$filename,
                         tx2gene = tx2gene, 
                         reader = read_tsv,
                         countsFromAbundance='lengthScaledTPM') %>%
-    .$counts %>%
+    .$abundance %>%
     data.frame() %>%
     set_names(kallisto_files_df$samplename) %>%
     rownames_to_column('id') %>%

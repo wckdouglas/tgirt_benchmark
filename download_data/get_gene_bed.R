@@ -15,9 +15,10 @@ bed_fields <- c('chromosome_name',
                 'strand',
                 'gene_biotype',
                 'ensembl_gene_id')
-getBM(attributes = bed_fields,
-      mart = ensembl) %>%
-    set_names(c('chrom','start','end','name','strand','biotype','id')) %>%
+getBM(attributes = bed_fields, mart = ensembl) %>%
+    set_names(c('chrom','start','end',
+                'name','strand','biotype',
+                'id')) %>%
     mutate(score=0) %>%
     dplyr::select(chrom,start,end,name,score,strand, biotype, id) %>%
     arrange(chrom,start) %>%
