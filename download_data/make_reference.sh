@@ -10,6 +10,15 @@ mkdir -p $TRANSCRIPTOME $GENOME_PATH
 ENSEMBL_TRANSCRIPT=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
 ENSEMBL_NON_CODING=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/ncrna/Homo_sapiens.GRCh38.ncrna.fa.gz
 ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.chr_patch_hapl_scaff.gtf.gz
+HUMAN_REF_URL=ftp://ftp.ensembl.org/pub/release-88/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna_sm.toplevel.fa.gz
+ERCC_annotation=https://tools.thermofisher.com/content/sfs/manuals/cms_095046.txt
+GTRNA=http://gtrnadb.ucsc.edu/GtRNAdb2/genomes/eukaryota/Hsapi38/hg38-tRNAs.tar.gz
+
+### Download genome ref
+curl $HUMAN_REF_URL > $GENOME_PATH/reference.fa.gz
+
+hisat2-build $GENOME_PATH/reference.fa $GENOME_PATH/reference.fasta
+
 
 #Download rRNA
 python get_rRNA_fa.py > $TRANSCRIPTOME/rRNA.fa
@@ -22,7 +31,6 @@ gi|555853|gb|U13369.1|HSU13369  7935    12969   28S_rRNA        0       +       
 echo 'Made rRNA'
 
 #Download ERCC
-ERCC_annotation=https://tools.thermofisher.com/content/sfs/manuals/cms_095046.txt
 curl $ERCC_annotation | python clean_ercc.py  > $TRANSCRIPTOME/ercc_annotation.tsv
 curl https://tools.thermofisher.com/content/sfs/manuals/cms_095047.txt \
 	| sed 1d \
@@ -34,6 +42,11 @@ cat $TRANSCRIPTOME/ercc.fa \
    > $TRANSCRIPTOME/ercc.bed
 echo 'Made ERCC'
 
+####MAKE hisat2 index
+zcat $GENOME_PATH/reference.fa.gz \
+    | cat - $TRANSCRIPTOME_PATH/ercc.fa $TRANSCRIPTOME_PATH/rRNA.fa \
+> $GENOME_PATH/reference.fa
+
 #download gene annotation
 Rscript get_gene_bed.R $TRANSCRIPTOME/genes.bed
 cat $TRANSCRIPTOME/rRNA.bed >> $TRANSCRIPTOME/genes.bed
@@ -43,7 +56,7 @@ echo 'Made genes.bed'
 #download tRNA
 tRNA_PATH=$TRANSCRIPTOME/tRNA
 mkdir -p $tRNA_PATH
-curl -o $tRNA_PATH/hg38-tRNAs.tar.gz http://gtrnadb.ucsc.edu/GtRNAdb2/genomes/eukaryota/Hsapi38/hg38-tRNAs.tar.gz 
+curl -o $tRNA_PATH/hg38-tRNAs.tar.gz $GTRNA  
 tar zxvf $tRNA_PATH/hg38-tRNAs.tar.gz --directory $tRNA_PATH
 python scrape_tRNA_name.py $tRNA_PATH
 python make_tRNA_fasta.py $tRNA_PATH > $tRNA_PATH/nucleo_tRNA.fa
@@ -87,7 +100,7 @@ echo 'Made transcript table'
 
 
 ## Download GTF and append tRNA, rRNA, ERCC bed record
-GENES_GTF=$TRANSCRIPTOME/genes.gtf
+GENES_GTF=$GENOME_PATH/genes.gtf
 curl $ENSEMBL_GTF  \
 	| zcat \
 	| grep -v 'gene_biotype "TEC"' \
@@ -101,5 +114,5 @@ echo 'Made gtf'
 SAF_FILE=$TRANSCRIPTOME/genes.SAF
 echo 'GeneID\tchr\tstart\tend\tstrand' > $SAF_FILE
 awk '{print $NF,$1,$2,$3,$6}' OFS='\t' $TRANSCRIPTOME/genes.bed >> $SAF_FILE
-python split_bed_for_count.py $GENOME_PATH $TRANSCRIPTOME/transcripts.tsv
+python split_bed_for_count.py $TRANSCRIPTOME $TRANSCRIPTOME/transcripts.tsv
 echo 'Made bed for count and SAF file'
