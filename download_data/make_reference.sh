@@ -44,6 +44,7 @@ zcat $GENOME_PATH/reference.fa.gz \
 > $GENOME_PATH/reference.fa
 samtools faidx $GENOME_PATH/reference.fa
 hisat2-build $GENOME_PATH/reference.fa $GENOME_PATH/reference
+hisat2_extract_splice_sites.py $GENOME_PATH/genes.gtf > $GENOME_PATH/splicesite.tsv  
 
 #download gene annotation
 Rscript get_gene_bed.R $TRANSCRIPTOME/genes.bed
