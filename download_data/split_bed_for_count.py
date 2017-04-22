@@ -42,4 +42,4 @@ filenames = ['sncRNA_no_tRNA',
               'rRNA_for_bam_filter',
               'sncRNA_rRNA_for_bam_filter']
 for pattern, filename in zip(patterns, filenames):
-    filter_bed(pattern, filenames)
+    filter_bed(pattern, filename)

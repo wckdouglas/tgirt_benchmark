@@ -3,9 +3,10 @@
 
 #tRNA.fa comes from jun
 
-REF_PATH=${REF}
+REF_PATH=${REF}/benchmarking
 TRANSCRIPTOME=$REF_PATH/human_transcriptome
-GENOME_PATH=$REF_PATH/RNASeqConsortium
+GENOME_PATH=$REF_PATH/GRCH38_genome
+mkdir -p $TRANSCRIPTOME $GENOME_PATH
 ENSEMBL_TRANSCRIPT=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
 ENSEMBL_NON_CODING=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/ncrna/Homo_sapiens.GRCh38.ncrna.fa.gz
 ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.chr_patch_hapl_scaff.gtf.gz
@@ -45,16 +46,17 @@ mkdir -p $tRNA_PATH
 curl -o $tRNA_PATH/hg38-tRNAs.tar.gz http://gtrnadb.ucsc.edu/GtRNAdb2/genomes/eukaryota/Hsapi38/hg38-tRNAs.tar.gz 
 tar zxvf $tRNA_PATH/hg38-tRNAs.tar.gz --directory $tRNA_PATH
 python scrape_tRNA_name.py $tRNA_PATH
-python make_tRNA_fasta.py $tRNA_PATH > $TRANSCRIPTOME/tRNA.fa
+python make_tRNA_fasta.py $tRNA_PATH > $tRNA_PATH/nucleo_tRNA.fa
 cat $tRNA_PATH/hg38_tRNA.info | sed 1d > $TRANSCRIPTOME/tRNA.bed 
-cat $TRANSCRIPTOME/tRNA.bed >> $TRANSCRIPTOME/genes.bed
+cat $TRANSCRIPTOME/tRNA.bed |cut -f1-8 >> $TRANSCRIPTOME/genes.bed
 cat $TRANSCRIPTOME/genes.bed \
 	| grep 'Mt_tRNA' \
-	| bedtools getfasta  -fi $REF_PATH/RNASeqConsortium/reference.fasta.fa -bed - -s -name -tab \
+	| bedtools getfasta  -fi $GENOME_PATH/reference.fa -bed - -s -name -tab \
 	| tr ':' '\t' \
 	| awk '{printf ">%s\n%s\n",$1,$NF}' \
-	>> $TRANSCRIPTOME/tRNA.fa
+	>> $tRNA_PATH/mt_tRNA.fa
 echo 'Finished making tRNA'
+cat $tRNA_PATH/mt_tRNA.fa $tRNA_PATH/nucleo_tRNA.fa > $TRANSCRIPTOME/tRNA.fa
 
 #Download transcripts and merge tRNA
 curl $ENSEMBL_TRANSCRIPT > $TRANSCRIPTOME/ensembl_cDNA.fa.gz
@@ -63,7 +65,7 @@ zcat $TRANSCRIPTOME/ensembl_cDNA.fa.gz \
 		$TRANSCRIPTOME/ensembl_ncrna.fa.gz \
 	| python correct_transcriptome_id.py \
 	| tee $TRANSCRIPTOME/ensembl_transcripts.fa \
-	| cat - $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/rRNA.fa $TRANSCRIPTOME/ercc.fa \
+	| cat - $tRNA_PATH/nucleo_tRNA.fa $TRANSCRIPTOME/rRNA.fa $TRANSCRIPTOME/ercc.fa \
 	> $TRANSCRIPTOME/whole_transcriptome.fa
 echo 'Made transcriptome fasta'
 
@@ -71,20 +73,17 @@ echo 'Made transcriptome fasta'
 OUT_FILE=$TRANSCRIPTOME/transcripts.tsv
 cat $TRANSCRIPTOME/ensembl_transcripts.fa \
 	| python transcript_table_from_fa.py > $OUT_FILE
-python tRNA_fai2table.py $TRANSCRIPTOME/tRNA.fa >> $OUT_FILE
+#python tRNA_fai2table.py $TRANSCRIPTOME/tRNA.fa >> $OUT_FILE
 awk '{print $1,$1,$1,"ERCC"}' OFS='\t' $TRANSCRIPTOME/ercc.bed >> $OUT_FILE
 awk -F'\t' '{print $1,$4,$1,"rRNA"}' OFS='\t' $TRANSCRIPTOME/rRNA.bed >> $OUT_FILE
-cat $TRANSCRIPTOME/tRNA.fa \
-	| grep '>' \
-	| sed 's/>//g' \
-	| awk '{print $1,$1}' OFS='\t' \
-	| sed -E 's/[0-9]+\-[0-9]+$//g' \
-	| awk '{print $2,$2,$1,"tRNA"}' OFS='\t'  \
+cat $tRNA_PATH/hg38_tRNA.info \
+	| awk '{print $8, $4, $8, $7}' OFS='\t'\
+	| sed 1d    \
 	>> $OUT_FILE
 echo 'Made transcript table'
 
-bowtie2-build $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/tRNA
-bowtie2-build $TRANSCRIPTOME/rRNA.fa $TRANSCRIPTOME/rRNA
+#bowtie2-build $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/tRNA
+#bowtie2-build $TRANSCRIPTOME/rRNA.fa $TRANSCRIPTOME/rRNA
 
 
 ## Download GTF and append tRNA, rRNA, ERCC bed record

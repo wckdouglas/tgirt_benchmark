@@ -68,7 +68,8 @@ gene_file <- '/stor/work/Lambowitz/ref/human_transcriptome/transcripts.tsv'  %>%
     tbl_df
 
 gene_length_df <- '/stor/work/Lambowitz/ref/human_transcriptome/genes.length' %>%
-    read_tsv 
+    read_tsv  %>%
+    unique()
  
 
 #read alignment free abundance file from tximport
@@ -86,12 +87,17 @@ files <- c(file.path(project_path, 'genome_mapping/conventional/feature_counts.t
 labels <- c('conventional','customized')
 genome_df <- map2(files, labels, function(x,y) read_tsv(x) %>% 
                       mutate(map_type=y) %>%
-                      mutate(id = str_replace(id, '-[0-9]+$','')) %>%
                       set_names(str_replace_all(names(.),'-','_'))) %>%
     purrr::reduce(rbind) %>%
     inner_join(gene_length_df) %>%
-    mutate(id = ifelse(grepl('^TR|NM|MT',id), str_replace(id,'[0-9]+$','') ,id)) %>%
+    mutate(id = str_replace(id,'\\-$',''))%>%
     gather(samplename, abundance, -id,-map_type, -gene_length) %>%
+    mutate(id = ifelse(!grepl('ERCC',id),str_replace(id, '\\-[0-9]+$',''),id)) %>%
+    mutate(id = ifelse(grepl('^TR|NM|MT',id), str_replace(id,'[0-9]+$','') ,id)) %>%
+    group_by(id, samplename) %>%
+    summarize(abundance = sum(abundance), 
+              gene_length = mean(gene_length)) %>%
+    ungroup() %>%
     mutate(tpm = count_to_tpm(abundance, gene_length)) %>%
     select(-abundance, - gene_length) %>%
     dplyr::rename(abundance=tpm) %>%

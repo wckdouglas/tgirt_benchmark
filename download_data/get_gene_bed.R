@@ -24,7 +24,6 @@ getBM(attributes = bed_fields, mart = ensembl) %>%
     arrange(chrom,start) %>%
     mutate(strand = ifelse(strand < 1, '-','+')) %>%
     filter(biotype!='TEC') %>%
-    filter(!grepl('CHR',chrom)) %>%
     write_tsv(out_bed_name, col_names=F)
 message('Downloaded ', out_bed_name)
     
