@@ -85,6 +85,8 @@ def get_table(url, name):
 
     df.to_csv(tab_name,sep='\t',index=False)
     print 'Written %s' %tab_name
+    browser.close()
+    browser.quit()
 
 
 url = 'http://gtrnadb.ucsc.edu/GtRNAdb2/genomes/eukaryota/Hsapi38/Hsapi38-gene-list.html'
