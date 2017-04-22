@@ -1,12 +1,11 @@
 #!/bin/bash
 
-
-#tRNA.fa comes from jun
-
 REF_PATH=${REF}/benchmarking
 TRANSCRIPTOME=$REF_PATH/human_transcriptome
 GENOME_PATH=$REF_PATH/GRCH38_genome
 mkdir -p $TRANSCRIPTOME $GENOME_PATH
+
+#URLs for reference
 ENSEMBL_TRANSCRIPT=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
 ENSEMBL_NON_CODING=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/ncrna/Homo_sapiens.GRCh38.ncrna.fa.gz
 ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.chr_patch_hapl_scaff.gtf.gz
@@ -16,9 +15,6 @@ GTRNA=http://gtrnadb.ucsc.edu/GtRNAdb2/genomes/eukaryota/Hsapi38/hg38-tRNAs.tar.
 
 ### Download genome ref
 curl $HUMAN_REF_URL > $GENOME_PATH/reference.fa.gz
-
-hisat2-build $GENOME_PATH/reference.fa $GENOME_PATH/reference.fasta
-
 
 #Download rRNA
 python get_rRNA_fa.py > $TRANSCRIPTOME/rRNA.fa
@@ -46,6 +42,8 @@ echo 'Made ERCC'
 zcat $GENOME_PATH/reference.fa.gz \
     | cat - $TRANSCRIPTOME_PATH/ercc.fa $TRANSCRIPTOME_PATH/rRNA.fa \
 > $GENOME_PATH/reference.fa
+samtools faidx $GENOME_PATH/reference.fa
+hisat2-build $GENOME_PATH/reference.fa $GENOME_PATH/reference
 
 #download gene annotation
 Rscript get_gene_bed.R $TRANSCRIPTOME/genes.bed
@@ -71,7 +69,7 @@ cat $TRANSCRIPTOME/genes.bed \
 echo 'Finished making tRNA'
 cat $tRNA_PATH/mt_tRNA.fa $tRNA_PATH/nucleo_tRNA.fa > $TRANSCRIPTOME/tRNA.fa
 
-#Download transcripts and merge tRNA
+#Download transcripts and merge tRNA, ercc, rDNA
 curl $ENSEMBL_TRANSCRIPT > $TRANSCRIPTOME/ensembl_cDNA.fa.gz
 curl $ENSEMBL_NON_CODING > $TRANSCRIPTOME/ensembl_ncrna.fa.gz
 zcat $TRANSCRIPTOME/ensembl_cDNA.fa.gz \
@@ -86,7 +84,6 @@ echo 'Made transcriptome fasta'
 OUT_FILE=$TRANSCRIPTOME/transcripts.tsv
 cat $TRANSCRIPTOME/ensembl_transcripts.fa \
 	| python transcript_table_from_fa.py > $OUT_FILE
-#python tRNA_fai2table.py $TRANSCRIPTOME/tRNA.fa >> $OUT_FILE
 awk '{print $1,$1,$1,"ERCC"}' OFS='\t' $TRANSCRIPTOME/ercc.bed >> $OUT_FILE
 awk -F'\t' '{print $1,$4,$1,"rRNA"}' OFS='\t' $TRANSCRIPTOME/rRNA.bed >> $OUT_FILE
 cat $tRNA_PATH/hg38_tRNA.info \
@@ -95,9 +92,8 @@ cat $tRNA_PATH/hg38_tRNA.info \
 	>> $OUT_FILE
 echo 'Made transcript table'
 
-#bowtie2-build $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/tRNA
-#bowtie2-build $TRANSCRIPTOME/rRNA.fa $TRANSCRIPTOME/rRNA
-
+bowtie2-build $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/tRNA
+bowtie2-build $TRANSCRIPTOME/rRNA.fa $TRANSCRIPTOME/rRNA
 
 ## Download GTF and append tRNA, rRNA, ERCC bed record
 GENES_GTF=$GENOME_PATH/genes.gtf
