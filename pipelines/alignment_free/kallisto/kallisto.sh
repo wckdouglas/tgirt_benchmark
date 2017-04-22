@@ -16,6 +16,9 @@ do
 	echo time kallisto quant \
 		-i ${INDEX} -o ${COUNT_PATH}/${SAMPLENAME} \
 		--fr-stranded  --threads=${THREADS}\
-		${R1} ${R2} 
+		--pseudobam \
+		${R1} ${R2}  \
+	\| samtools view -b \
+	\> $BAM_PATH/${SAMPLENAME}.bam
 done
 
