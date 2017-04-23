@@ -1,4 +1,4 @@
-cd $REF/human_transcriptome
+cd $REF/benchmarking/human_transcriptome
 KALLISTO_REF=transcriptome_kallisto
 mkdir $KALLISTO_REF
 cd $KALLISTO_REF
