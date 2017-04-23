@@ -2,8 +2,12 @@
 
 
 import pandas as pd
+import os, sys
 
-gene_path = '/stor/work/Lambowitz/ref/human_transcriptome'
+if len(sys.argv) != 2:
+    sys.exit('[usage] python %s <ref path>' %sys.argv[0])
+    
+gene_path = sys.argv[1]
 
 def transcript_table():
     tablename = gene_path + '/transcripts.tsv'
@@ -22,5 +26,7 @@ def genes_bed():
 
 t_tab = transcript_table()
 bed = genes_bed()
-df = t_tab.merge(bed, how='outer', on ='gene_id')
-
+df = t_tab.merge(bed, how='inner', on ='gene_id')
+union_gene = gene_path + '/union_genes.tsv'
+df.to_csv(union_gene, index=False, sep='\t')
+print 'Written %s' %union_gene
