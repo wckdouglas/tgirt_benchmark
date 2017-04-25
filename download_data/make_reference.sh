@@ -11,6 +11,7 @@ ENSEMBL_NON_CODING=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/ncrna
 ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.chr_patch_hapl_scaff.gtf.gz
 HUMAN_REF_URL=ftp://ftp.ensembl.org/pub/release-88/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 ERCC_annotation=https://tools.thermofisher.com/content/sfs/manuals/cms_095046.txt
+ERCC_SEQUENCE=https://tools.thermofisher.com/content/sfs/manuals/cms_095047.txt
 GTRNA=http://gtrnadb.ucsc.edu/GtRNAdb2/genomes/eukaryota/Hsapi38/hg38-tRNAs.tar.gz
 
 ### Download genome ref
@@ -28,7 +29,7 @@ echo 'Made rRNA'
 
 #Download ERCC
 curl $ERCC_annotation | python clean_ercc.py  > $TRANSCRIPTOME/ercc_annotation.tsv
-curl https://tools.thermofisher.com/content/sfs/manuals/cms_095047.txt \
+curl $ERCC_SEQUENCE \
 	| sed 1d \
 	| awk '{printf ">%s\n%s\n",$1,$5}'  \
 	> $TRANSCRIPTOME/ercc.fa
