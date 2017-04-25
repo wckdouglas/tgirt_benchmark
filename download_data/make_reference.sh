@@ -9,12 +9,12 @@ mkdir -p $TRANSCRIPTOME $GENOME_PATH
 ENSEMBL_TRANSCRIPT=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
 ENSEMBL_NON_CODING=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/ncrna/Homo_sapiens.GRCh38.ncrna.fa.gz
 ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.chr_patch_hapl_scaff.gtf.gz
-HUMAN_REF_URL=ftp://ftp.ensembl.org/pub/release-88/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna_rm.primary_assembly.fa.gz
+HUMAN_REF_URL=ftp://ftp.ensembl.org/pub/release-88/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 ERCC_annotation=https://tools.thermofisher.com/content/sfs/manuals/cms_095046.txt
 GTRNA=http://gtrnadb.ucsc.edu/GtRNAdb2/genomes/eukaryota/Hsapi38/hg38-tRNAs.tar.gz
 
 ### Download genome ref
-curl $HUMAN_REF_URL > $GENOME_PATH/reference.fa.gz
+#curl $HUMAN_REF_URL > $GENOME_PATH/reference.fa.gz
 
 #Download rRNA
 python get_rRNA_fa.py > $TRANSCRIPTOME/rRNA.fa
@@ -43,8 +43,10 @@ zcat $GENOME_PATH/reference.fa.gz \
     | cat - $TRANSCRIPTOME/ercc.fa $TRANSCRIPTOME/rRNA.fa \
 > $GENOME_PATH/reference.fa
 samtools faidx $GENOME_PATH/reference.fa
-hisat2-build $GENOME_PATH/reference.fa $GENOME_PATH/reference
+#hisat2-build $GENOME_PATH/reference.fa $GENOME_PATH/reference
+#bowtie2-build $GENOME_PATH/reference.fa $GENOME_PATH/reference
 hisat2_extract_splice_sites.py $GENOME_PATH/genes.gtf > $GENOME_PATH/splicesite.tsv  
+echo 'Made genome'
 
 #download gene annotation
 Rscript get_gene_bed.R $TRANSCRIPTOME/genes.bed
@@ -70,15 +72,18 @@ cat $TRANSCRIPTOME/genes.bed \
 echo 'Finished making tRNA'
 cat $tRNA_PATH/mt_tRNA.fa $tRNA_PATH/nucleo_tRNA.fa > $TRANSCRIPTOME/tRNA.fa
 
+
 #Download transcripts and merge tRNA, ercc, rDNA
 curl $ENSEMBL_TRANSCRIPT > $TRANSCRIPTOME/ensembl_cDNA.fa.gz
 curl $ENSEMBL_NON_CODING > $TRANSCRIPTOME/ensembl_ncrna.fa.gz
+bedtools getfasta -s -fi $TRANSCRIPTOME/rRNA.fa -bed $TRANSCRIPTOME/rRNA.bed -name > $TRANSCRIPTOME/rDNA.fa
 zcat $TRANSCRIPTOME/ensembl_cDNA.fa.gz \
 		$TRANSCRIPTOME/ensembl_ncrna.fa.gz \
 	| python correct_transcriptome_id.py \
 	| tee $TRANSCRIPTOME/ensembl_transcripts.fa \
-	| cat - $tRNA_PATH/nucleo_tRNA.fa $TRANSCRIPTOME/rRNA.fa $TRANSCRIPTOME/ercc.fa \
+	| cat - $tRNA_PATH/nucleo_tRNA.fa $TRANSCRIPTOME/rDNA.fa $TRANSCRIPTOME/ercc.fa \
 	> $TRANSCRIPTOME/whole_transcriptome.fa
+samtools faidx $TRANSCRIPTOME/whole_transcriptome.fa
 echo 'Made transcriptome fasta'
 
 ## make transcript table
@@ -116,3 +121,15 @@ echo 'Made bed for count and SAF file'
 
 # get union gene set
 python calibrate_gene_set.py $TRANSCRIPTOME
+
+
+#make tRNA and rRNA fasta
+cat $TRANSCRIPTOME/genes.bed \
+	| awk '$7=="rRNA"' \
+	| bedtools getfasta -fi $GENOME_PATH/reference.fa -bed -  -s \
+	| fastx_collapser \
+	| sed 's/>/>rRNA_/g' \
+	| cat - $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/rRNA.fa \
+	> $TRANSCRIPTOME/tRNA_rRNA.fa
+bowtie2-build $TRANSCRIPTOME/tRNA_rRNA.fa $TRANSCRIPTOME/tRNA_rRNA
+

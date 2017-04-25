@@ -1,9 +1,10 @@
 #!/bin/bash
 
 PROJECT_PATH=${SCRATCH}/bench_marking
+PROJECT_PATH=${WORK}/cdw2854/bench_marking
 DATAPATH=${PROJECT_PATH}/data
 RESULT_PATH=${PROJECT_PATH}/genome_mapping
-HISAT_INDEX=$REF/RNASeqConsortium/reference.fasta
+HISAT_INDEX=$REF/benchmarking/genome/GRCH38_genome/reference
 SPLICE_FILE=$REF/GRCh38/Plasma_ref/splicesites.txt
 BOWTIE_INDEX=$REF/RNASeqConsortium/reference.fasta
 
