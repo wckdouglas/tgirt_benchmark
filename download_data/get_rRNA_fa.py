@@ -13,5 +13,5 @@ for rRNA in rRNA_gene:
     handle = Entrez.efetch(db="nucleotide", id=id, 
                            rettype="fasta", retmode="text")
     record = handle.read()
-    print '>' + rRNA + '\n'.join(record.split('\n')[1:])
+    print '>' + rRNA +'\n'+ '\n'.join(record.split('\n')[1:])
 

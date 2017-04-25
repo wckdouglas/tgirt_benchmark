@@ -9,7 +9,7 @@ mkdir -p $TRANSCRIPTOME $GENOME_PATH
 ENSEMBL_TRANSCRIPT=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
 ENSEMBL_NON_CODING=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/ncrna/Homo_sapiens.GRCh38.ncrna.fa.gz
 ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.chr_patch_hapl_scaff.gtf.gz
-HUMAN_REF_URL=ftp://ftp.ensembl.org/pub/release-88/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna_sm.toplevel.fa.gz
+HUMAN_REF_URL=ftp://ftp.ensembl.org/pub/release-88/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna_rm.primary_assembly.fa.gz
 ERCC_annotation=https://tools.thermofisher.com/content/sfs/manuals/cms_095046.txt
 GTRNA=http://gtrnadb.ucsc.edu/GtRNAdb2/genomes/eukaryota/Hsapi38/hg38-tRNAs.tar.gz
 
@@ -40,7 +40,7 @@ echo 'Made ERCC'
 
 ####MAKE hisat2 index
 zcat $GENOME_PATH/reference.fa.gz \
-    | cat - $TRANSCRIPTOME_PATH/ercc.fa $TRANSCRIPTOME_PATH/rRNA.fa \
+    | cat - $TRANSCRIPTOME/ercc.fa $TRANSCRIPTOME/rRNA.fa \
 > $GENOME_PATH/reference.fa
 samtools faidx $GENOME_PATH/reference.fa
 hisat2-build $GENOME_PATH/reference.fa $GENOME_PATH/reference
