@@ -21,10 +21,10 @@ def filter_bed(type_pattern, filename):
     bed_file_name = '%s/%s.bed' %(bed_path, filename)
     if 'genes_no' not in filename:
         gene_bed[gene_bed.bio_type.str.contains(type_pattern)] \
-            .to_csv(bed_file_name, header=False, index=False )
+            .to_csv(bed_file_name, header=False, index=False ,sep='\t')
     else:
         gene_bed[~gene_bed.bio_type.str.contains(type_pattern)] \
-            .to_csv(bed_file_name, header=False, index=False )
+            .to_csv(bed_file_name, header=False, index=False, sep='\t')
     print 'Written: ', bed_file_name
 
 patterns = ['miRNA|misc_RNA|snoRNA|snRNA',

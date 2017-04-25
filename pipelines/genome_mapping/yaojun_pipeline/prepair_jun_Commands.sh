@@ -4,8 +4,9 @@ PROJECT_PATH=${SCRATCH}/bench_marking
 PROJECT_PATH=${WORK}/cdw2854/bench_marking
 DATAPATH=${PROJECT_PATH}/data
 RESULT_PATH=${PROJECT_PATH}/genome_mapping
-HISAT_INDEX=$REF/benchmarking/genome/GRCH38_genome/reference
-SPLICE_FILE=$REF/GRCh38/Plasma_ref/splicesites.txt
+REFERENCE_PATH=$REF/benchmarking/genome/GRCH38_genome/
+HISAT_INDEX=$REFERENCE_PATH/reference
+SPLICE_FILE=$REFERENCE_PATH/splicesite.tsv
 BOWTIE_INDEX=$REF/RNASeqConsortium/reference.fasta
 
 for FQ in ${DATAPATH}/*R1_001.fastq.gz
