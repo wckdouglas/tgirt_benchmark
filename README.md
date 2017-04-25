@@ -96,6 +96,7 @@ bas command.sh
 ### Run genome mapping with customized maps
 
 ```
+pip install git+https://github.com/wckdouglas/tgirt_seq_tools.git
 bash prepair_jun_Commands.sh > command.sh
 bash command.sh
 ```
