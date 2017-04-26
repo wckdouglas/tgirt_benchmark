@@ -125,12 +125,12 @@ python calibrate_gene_set.py $TRANSCRIPTOME
 
 
 #make tRNA and rRNA fasta
-cat $TRANSCRIPTOME/genes.bed \
-	| awk '$7=="rRNA"' \
-	| bedtools getfasta -fi $GENOME_PATH/reference.fa -bed -  -s \
-	| fastx_collapser \
-	| sed 's/>/>rRNA_/g' \
-	| cat - $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/rRNA.fa \
+#cat $TRANSCRIPTOME/genes.bed \
+#	| awk '$7=="rRNA"' \
+#	| bedtools getfasta -fi $GENOME_PATH/reference.fa -bed -  -s \
+#	| fastx_collapser \
+#	| sed 's/>/>rRNA_/g' \
+cat  $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/rRNA.fa \
 	> $TRANSCRIPTOME/tRNA_rRNA.fa
 bowtie2-build $TRANSCRIPTOME/tRNA_rRNA.fa $TRANSCRIPTOME/tRNA_rRNA
 

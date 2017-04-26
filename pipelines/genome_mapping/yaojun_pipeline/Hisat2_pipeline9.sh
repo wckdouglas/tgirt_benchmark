@@ -1,6 +1,8 @@
 #!bin/bash
 
 # Pipeline for PE reads
+##  pip install git+https://github.com/wckdouglas/tgirt_seq_tools.git
+
 
 # Need JA number, and part of the sample name from the RAW fastq file as input parameters
 # Such as JA15599, and YQ1
