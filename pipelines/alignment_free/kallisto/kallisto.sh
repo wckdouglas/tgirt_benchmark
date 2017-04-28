@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DATAPATH=${SCRATCH}/bench_marking/data
-INDEX_PATH=${REF}/human_transcriptome
+INDEX_PATH=${REF}/benchmarking/human_transcriptome
 INDEX=${INDEX_PATH}/transcriptome_kallisto/transcriptome_kallisto
 RESULTPATH=${SCRATCH}/bench_marking/alignment_free
 COUNT_PATH=${RESULTPATH}/countFiles
@@ -16,9 +16,6 @@ do
 	echo time kallisto quant \
 		-i ${INDEX} -o ${COUNT_PATH}/${SAMPLENAME} \
 		--fr-stranded  --threads=${THREADS}\
-		--pseudobam \
-		${R1} ${R2}  \
-	\| samtools view -b \
-	\> $BAM_PATH/${SAMPLENAME}.bam
+		${R1} ${R2}  
 done
 

@@ -38,65 +38,16 @@ Samplefolder=$Workfolder/$Sample
 Countsfolder=$Workfolder/Counts
 
 if [ ! -d "$RAWfolder" ] ; then echo "This folder doesn't exist."; exit 1; fi
-if [ ! -d "$Workfolder" ] ; then
-	mkdir -p "$Trimfolder"
-	mkdir -p "$Samplefolder/Hisat"
-	mkdir $Samplefolder/rRNA_tRNA_premap
-	mkdir "$Samplefolder/Bowtie"
-	mkdir "$Samplefolder/Combined"
-	mkdir "$Samplefolder/tRNA"
-	mkdir "$Samplefolder/rRNA"
-	mkdir -p "$Countsfolder/RAW"
-	mkdir "$Countsfolder/Simple"
-	mkdir "$Countsfolder/tRNA_RAW"
-	mkdir "$Countsfolder/tRNA_anti"
-else
-	if [ ! -d "$Samplefolder" ] ; then
-		mkdir -p "$Samplefolder/Hisat"
-		mkdir "$Samplefolder/Bowtie"
-		mkdir "$Samplefolder/Combined"
-		mkdir "$Samplefolder/tRNA"
-		mkdir "$Samplefolder/rRNA"
-	else
-		if [ ! -d "$Samplefolder/Hisat" ] ; then
-			mkdir "$Samplefolder/Hisat"
-		fi
-		if [ ! -d "$Samplefolder/Bowtie" ] ; then
-			mkdir "$Samplefolder/Bowtie"
-		fi
-		if [ ! -d "$Samplefolder/Combined" ] ; then
-			mkdir "$Samplefolder/Combined"
-		fi
-		if [ ! -d "$Samplefolder/tRNA" ] ; then
-			mkdir "$Samplefolder/tRNA"
-		fi
-		if [ ! -d "$Samplefolder/rRNA" ] ; then
-                        mkdir "$Samplefolder/rRNA"
-                fi
-	fi
-	if [ ! -d "$Countsfolder" ] ; then
-		mkdir -p "$Countsfolder/RAW"
-		mkdir "$Countsfolder/Simple"
-		mkdir "$Countsfolder/tRNA_RAW"
-		mkdir "$Countsfolder/tRNA_anti"
-	else
-		if [ ! -d "$Countsfolder/RAW" ] ; then
-			mkdir "$Countsfolder/RAW"
-		fi
-		if [ ! -d "$Countsfolder/Simple" ] ; then
-			mkdir "$Countsfolder/Simple"
-		fi
-		if [ ! -d "$Countsfolder/tRNA_RAW" ] ; then
-			mkdir "$Countsfolder/tRNA_RAW"
-		fi
-		if [ ! -d "$Countsfolder/tRNA_anti" ] ; then
-			mkdir "$Countsfolder/tRNA_anti"
-		fi
-	fi
-	if [ ! -d "$Trimfolder" ] ; then
-		mkdir "$Trimfolder"
-	fi
-fi
+mkdir -p "$Trimfolder" \
+	 "$Samplefolder/Hisat" \
+	 "$Samplefolder/rRNA_tRNA_premap" \
+	 "$Samplefolder/Bowtie" \
+	 "$Samplefolder/Combined" "$Samplefolder/tRNA" \
+	"$Samplefolder/rRNA" \
+	 "$Countsfolder/RAW" \
+	"$Countsfolder/Simple" \
+	"$Countsfolder/tRNA_RAW" \
+	"$Countsfolder/tRNA_anti" \
 
 #2 Start adapt trimming,
 file="$RAWfolder/$Sample*.fastq.gz"
@@ -119,18 +70,20 @@ TRNA_FASTQ2=${TRNA_FASTQ1/.1.fq/.2.fq}
 rRNA_FASTQ1=$PREMAP_PATH/rRNA.1.fq
 rRNA_FASTQ2=${rRNA_FASTQ1/.1.fq/.2.fq}
 
-bowtie2 -p 24 -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 --no-mixed --norc --no-discordant -x $BED_PATH/tRNA_rRNA -1 $trimed1 -2 $trimed2 | samtools view -bS@24 - > $PREMAP_PATH/tRNA_rRNA.bam
+bowtie2 -p 24 -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 --no-mixed --norc --no-discordant -x $BED_PATH/tRNA_rRNA -1 $trimed1 -2 $trimed2 \
+	| samtools view -bS@24 - \
+	> $PREMAP_PATH/tRNA_rRNA.bam
 
 #extract tr/RNA reads
 samtools view -h -F4 $PREMAP_PATH/tRNA_rRNA.bam \
 	| awk '$1~"^@" || $2 == 83 || $2 == 163 || $2 == 99 || $2 == 147' \
-	| awk '$1~"^@" || $3~/gi\||rRNA/'
+	| awk '$1~"^@" || $3~/gi\||rRNA/' \
 	| samtools view -b \
-	| bamToFastq -fq $rRNA_FASTQ1 -fq2 $rRNA_FASTQ2 -i -
+	| bamToFastq -fq $rRNA_FASTQ1 -fq2 $rRNA_FASTQ2 -i - 
 
 samtools view -h -F4 $PREMAP_PATH/tRNA_rRNA.bam \
 	| awk '$1~"^@" || $2 == 83 || $2 == 163 || $2 == 99 || $2 == 147' \
-	| awk '$1~"^@" || $3!~/gi\||rRNA/'
+	| awk '$1~"^@" || $3!~/gi\||rRNA/' \
 	| samtools view -b \
 	| bamToFastq -fq $TRNA_FASTQ1 -fq2 $TRNA_FASTQ2 -i -
 
