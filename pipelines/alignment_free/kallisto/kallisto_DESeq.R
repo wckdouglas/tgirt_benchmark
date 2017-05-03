@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
-library("BiocParallel")
-register(MulticoreParam(12))
+#library("BiocParallel")
+#register(MulticoreParam(12))
 library(DESeq2)
 library(readr)
 library(stringr)
@@ -12,7 +12,7 @@ library(tximport)
 library(feather)
 
 # read gene table
-gene_file <- '/stor/work/Lambowitz/ref/human_transcriptome/transcripts.tsv' %>%
+gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcripts.tsv' %>%
     read_tsv()  %>%
     dplyr::rename(target_id=t_id) %>%
     tbl_df
@@ -20,12 +20,13 @@ gene_file <- '/stor/work/Lambowitz/ref/human_transcriptome/transcripts.tsv' %>%
 tx2gene <- gene_file %>%
     select(target_id, gene_id) %>%
     set_names(c('TXNAME','GENEID')) %>%
-    mutate(TXNAME=str_replace(TXNAME,'\\.[0-9]+$','')) %>%
+   # mutate(GENEID=str_replace(GENEID,'[0-9]+-[0-9]+$','')) %>%
     unique() %>%
     filter(!duplicated(TXNAME))
 
+
 # make sample file and annotations
-project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/alignment_free/kallisto/countFiles'
+project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/alignment_free/kallisto'
 kallisto_files_df <-  list.files(project_path, pattern = '[1-3]$') %>%
     data.frame(samplename=.) %>%
     mutate(filename = str_c(project_path,samplename,'abundance.tsv',sep='/'))%>%

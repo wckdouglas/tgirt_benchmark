@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
-library("BiocParallel")
-register(MulticoreParam(12))
+#library("BiocParallel")
+#register(MulticoreParam(12))
 library(readr)
 library(stringr)
 library(purrr)
@@ -11,7 +11,7 @@ library(feather)
 library(DESeq2)
 
 # read gene table
-gene_file <- '/stor/work/Lambowitz/ref/human_transcriptome/transcripts.tsv' %>%
+gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcripts.tsv' %>%
     read_tsv()  %>%
     dplyr::rename(target_id=t_id) %>%
     tbl_df
@@ -19,6 +19,7 @@ gene_file <- '/stor/work/Lambowitz/ref/human_transcriptome/transcripts.tsv' %>%
 tx2gene <- gene_file %>%
     select(target_id, gene_id) %>%
     set_names(c('TXNAME','GENEID')) %>%
+    mutate(GENEID = str_replace(GENEID, '[0-9]+\\-[0-9]+','')) %>%
     unique() %>%
     filter(!duplicated(TXNAME))
 

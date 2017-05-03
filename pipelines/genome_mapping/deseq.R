@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 
-library("BiocParallel")
-register(MulticoreParam(12))
+#library("BiocParallel")
+#register(MulticoreParam(12))
 library(DESeq2)
 library(cowplot)
 library(feather)
@@ -9,6 +9,7 @@ library(readr)
 library(stringr)
 library(tibble)
 library(dplyr)
+library(purrr)
 
 #subset data table to retain needed columns
 selectSample <- function(d, pattern) {
@@ -50,8 +51,8 @@ read_table_and_DESeq <- function(tablename, map_type){
         message('Written: ', out_table)
 }
     
-table_names <- c('/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/pipeline7/Counts/RAW/combined_gene_count.tsv',
-                 '/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/conventional/feature_counts.tsv')
+table_names <- c('/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/Counts/RAW/combined_gene_count.tsv',
+                 '/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/Trim/conventional/counts/feature_counts.tsv')
 map_types <- c('Customized_pipeline','Conventional_pipeline')
 map2(table_names, map_types, read_table_and_DESeq)
 

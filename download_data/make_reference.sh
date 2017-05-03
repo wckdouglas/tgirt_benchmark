@@ -92,11 +92,8 @@ OUT_FILE=$TRANSCRIPTOME/transcripts.tsv
 cat $TRANSCRIPTOME/ensembl_transcripts.fa \
 	| python transcript_table_from_fa.py > $OUT_FILE
 awk '{print $1,$1,$1,"ERCC"}' OFS='\t' $TRANSCRIPTOME/ercc.bed >> $OUT_FILE
-awk -F'\t' '{print $1,$4,$1,"rRNA"}' OFS='\t' $TRANSCRIPTOME/rRNA.bed >> $OUT_FILE
-cat $tRNA_PATH/hg38_tRNA.info \
-	| awk '{print $8, $4, $8, $7}' OFS='\t'\
-	| sed 1d    \
-	>> $OUT_FILE
+python rRNA_transcript_to_gene.py $TRANSCRIPTOME/rDNA.fa >> $OUT_FILE
+python tRNA_transcript_to_gene.py $TRANSCRIPTOME/tRNA.fa >> $OUT_FILE
 echo 'Made transcript table'
 
 bowtie2-build $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/tRNA

@@ -29,7 +29,7 @@ with open(fasta_file, 'r') as fasta:
         sequence = str(record.seq)
         sequence = re.sub('[actgn]','', sequence)
         name = record.id
-        seq_id = name_dict[name] 
+        seq_id = name_dict[name]
         sequence_set = out_seq[seq_id]
         if sequence not in sequence_set:
             number = len(sequence_set) + 1
