@@ -82,7 +82,7 @@ kallisto_df <- tximport(kallisto_files_df$filename,
                         tx2gene = tx2gene, 
                         reader = read_tsv,
                         countsFromAbundance='lengthScaledTPM') %>%
-    .$abundance %>%
+    .$count %>%
     data.frame() %>%
     set_names(kallisto_files_df$samplename) %>%
     rownames_to_column('id') %>%

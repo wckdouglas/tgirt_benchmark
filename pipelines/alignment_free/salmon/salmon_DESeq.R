@@ -6,6 +6,7 @@ library(readr)
 library(stringr)
 library(purrr)
 library(dplyr)
+library(tibble)
 library(tximport)
 library(feather)
 library(DESeq2)
@@ -19,7 +20,7 @@ gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcri
 tx2gene <- gene_file %>%
     select(target_id, gene_id) %>%
     set_names(c('TXNAME','GENEID')) %>%
-    mutate(GENEID = str_replace(GENEID, '[0-9]+\\-[0-9]+','')) %>%
+#    mutate(GENEID = str_replace(GENEID, '[0-9]+\\-[0-9]+','')) %>%
     unique() %>%
     filter(!duplicated(TXNAME))
 
@@ -79,7 +80,7 @@ tximport(salmon_files_df$filename,
         tx2gene = tx2gene, 
         reader = read_tsv,
         countsFromAbundance='lengthScaledTPM') %>%
-    .$abundance %>%
+    .$count %>%
     data.frame() %>%
     set_names(salmon_files_df$samplename) %>%
     rownames_to_column('id') %>%
