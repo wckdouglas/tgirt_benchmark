@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-library(robustbase)
+#library(robustbase)
 library(readr)
 library(stringr)
 library(tibble)
@@ -12,11 +12,16 @@ library(cowplot)
 library(feather)
 
 # read gene table
-gene_file <- '/stor/work/Lambowitz/ref/GRCh38/transcripts.tsv' %>%
-    read_tsv()  %>%
-    dplyr::rename(target_id=t_id) %>%
+gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/all_genes.tsv'  %>%
+    read_tsv() %>%
+    select(gene_id, name,type) %>% 
+    dplyr::rename(id = gene_id) %>%
+    mutate(id = ifelse(type=='tRNA', name, id)) %>%
+    mutate(id = ifelse(grepl('MT',id), str_replace(id,'[0-9]$',''), id)) %>%
+#    mutate(type= ifelse(grepl('MT-T',name),'tRNA',type)) %>% 
     tbl_df
 
+# check <- gene_file %>% group_by(id) %>% summarize(a=n()) %>% filter(a>1)
 # read all tables ====================================================
 project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
 df <- project_path %>%
@@ -61,9 +66,8 @@ fc_df <- df %>%
     #unnest(data,predict) %>%
     mutate(error = logFC_CD - predict) %>% 
     ungroup() %>%
-    mutate(analytic_type = ifelse(grepl('multimap',map_type),'Genome Mapping','Alignment-free')) %>%
+    mutate(analytic_type = ifelse(grepl('pipe',map_type),'Genome Mapping','Alignment-free')) %>%
     inner_join(gene_file %>% 
-                   dplyr::rename(id=gene_id) %>% 
                    select(id,name,type) %>% 
                    unique,
                by = 'id') %>%
@@ -118,50 +122,22 @@ s_p <- ggplot() +
     scale_color_manual(values = colors) +
     scale_alpha_manual(values = c(0.1,1,1,1), guide=F) +
     panel_border()
+message('Plotted S curve')
 
 
-# make type FC
-#======set up change type funciton
-ncRNA=c("sense_intronic","3prime_overlapping_ncrna",'processed_transcript',
-        'sense_overlapping','Other_lncRNA')
-smncRNA=c('misc_RNA','snRNA','piRNA')
-large_rRNA=c('28S_rRNA','18S_rRNA')
-small_rRNA=c('rRNA','5S_rRNA','58S_rRNA','5.8S_rRNA')
-protein_coding = c('protein_coding','TR','IG')
 
-changeType <- function(x){
-    if (x %in% ncRNA){
-        'Other ncRNA'
-    }else if (grepl('TR|IG|protein',x)){
-        'Protein coding'
-    }else if (grepl('Mt_',x)){
-        'Mt'
-    }else if (grepl('tRNA',x)){
-        'tRNA'
-    }else if (x %in% small_rRNA){
-        '5/5.8S rRNA'
-    }else if (x %in% large_rRNA){
-        '18/28S rRNA'
-    }else if (x %in% smncRNA){
-        'Other sncRNA'
-    }else if (grepl('pseudogene',x)){
-        'Pseudogenes'
-    }else {
-        x
-    }
-}
 
 fc_type_df <- gene_file %>% 
-    dplyr::rename(id=gene_id) %>% 
     select(id,name,type) %>% 
     unique %>% 
     inner_join(fc_df) %>% 
     mutate(type = sapply(type,changeType))
 
+
 colors_type <- RColorBrewer::brewer.pal(12,'Paired')
 type_p <- ggplot() + 
     geom_point(data = fc_type_df %>% arrange(baseMean_AB), 
-               aes(shape = labeling, color = type,x=logFC_AB, y =logFC_CD, alpha=labeling))  + 
+               aes(shape = labeling, color = type, x=logFC_AB, y =logFC_CD, alpha=labeling))  + 
     labs(x = 'log(fold change AB)', y = 'log(fold change CD)', color = ' ', shape = ' ') +
     facet_grid(.~analytic_type+map_type) +
     xlim(-10,10) +
@@ -176,22 +152,27 @@ p <- plot_grid(s_p,type_p,
                                   filter(labeling %in% c('Top 1%','Top 10%')) %>% 
                                   group_by(labeling, analytic_type, map_type) %>%
                                   top_n(5,error),
-                              aes(x=logFC_AB, y = logFC_CD, label = name)),
-               ncol=1,align='v')
+                              aes(x=logFC_AB, y = logFC_CD, label = name, color = labeling)),
+               ncol=1,align='v',
+               labels = letters[1:3])
 figurepath <- str_c(project_path, '/figures')
 figurename <- str_c(figurepath, '/fold_change.png')
 save_plot(p , file=figurename,  base_width=14, base_height=14) 
 message('Saved: ', figurename)
 
 
+figurename <- str_c(figurepath, '/signif_genes_corr.png')
+png(figurename)
 sig_DE_df <- fc_df %>% 
-    filter(adj.P.Val_AB<0.05) %>% 
+    filter(padj_AB<0.05) %>% 
     mutate(map_type =  make.names(str_c(analytic_type, '_',map_type))) %>%
-    select(map_type, adj.P.Val_AB, id) %>%
-    spread(map_type, adj.P.Val_AB) %>%
+    select(map_type, padj_AB, id) %>%
+    spread(map_type, padj_AB) %>%
     tbl_df
+sig_scatter <- GGally::ggpairs(sig_DE_df, 2:5)
+dev.off()
+message('Saved: ', figurename)
 
-sig_scatter <- GGally::ggpairs(sig_DE_df, 2:4)
 
 per_type_r2_df <- fc_type_df  %>% 
     group_by(type,map_type,analytic_type) %>%     

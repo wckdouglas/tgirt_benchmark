@@ -12,17 +12,12 @@ library(feather)
 library(DESeq2)
 
 # read gene table
-gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcripts.tsv' %>%
+tx2gene <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcripts.tsv' %>%
     read_tsv()  %>%
     dplyr::rename(target_id=t_id) %>%
-    tbl_df
-
-tx2gene <- gene_file %>%
     select(target_id, gene_id) %>%
     set_names(c('TXNAME','GENEID')) %>%
-#    mutate(GENEID = str_replace(GENEID, '[0-9]+\\-[0-9]+','')) %>%
-    unique() %>%
-    filter(!duplicated(TXNAME))
+    tbl_df
 
 # make sample file and annotations
 project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/alignment_free/salmon'
@@ -80,7 +75,7 @@ tximport(salmon_files_df$filename,
         tx2gene = tx2gene, 
         reader = read_tsv,
         countsFromAbundance='lengthScaledTPM') %>%
-    .$count %>%
+    .$counts %>%
     data.frame() %>%
     set_names(salmon_files_df$samplename) %>%
     rownames_to_column('id') %>%
