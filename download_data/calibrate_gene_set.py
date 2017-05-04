@@ -69,12 +69,25 @@ def mt_tRNA(x,y):
         type = y
     return type
 
+def rRNA_name(name,type):
+    name = str(name)
+    if type == 'rRNA':
+        if '5S' in name:
+            name = '5S_rRNA'
+        if '5_8S_r' in name or '5-8S' in name:
+            name = '5.8S_rRNA'
+    else:
+        name = name
+    return name
+  
+
 t_tab = transcript_table()
 bed = genes_bed()
 df = t_tab.merge(bed, how='outer', on ='gene_id') \
     .assign(type = lambda d:map(union_type, d.type, d.gene_type)) \
     .assign(type = lambda d: map(mt_tRNA, d.name, d.type))\
     .assign(t_id = lambda d: d.t_id.fillna('NA')) \
+    .assign(name = lambda d: map(rRNA_name, d.name, d.type)) \
     .drop(['gene_name','gene_type'], axis=1) 
 union_gene = gene_path + '/all_genes.tsv'
 df.to_csv(union_gene, index=False, sep='\t')

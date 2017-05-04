@@ -11,6 +11,11 @@ library(tibble)
 library(dplyr)
 library(purrr)
 
+gene_df <- read_tsv('/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/all_genes.tsv') %>%
+    rename(id= gene_id) %>%
+    select(name, id, type) %>% 
+    distinct()
+
 #subset data table to retain needed columns
 selectSample <- function(d, pattern) {
     d <- d %>% select(grep(str_c('id|',pattern),names(.)))
@@ -44,6 +49,10 @@ read_table_func <- function(tablename){
         read_tsv()  %>%
         mutate(id = str_replace(id, '[0-9]+-[0-9]+$','')) %>%
         mutate(id = str_replace(id,'[0-9]+-$','')) %>%
+        inner_join(gene_df) %>% 
+        mutate(id = ifelse(type %in% c('Mt','rRNA'),name, id)) %>%
+        mutate(id = ifelse(grepl('MT',id), str_replace(id, '[0-9]+$',''), id)) %>%
+        select(-name, -type) %>%
         group_by(id) %>% 
         summarize_all(sum) %>%
         ungroup() %>%
