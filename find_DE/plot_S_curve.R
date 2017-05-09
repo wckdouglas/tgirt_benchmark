@@ -18,6 +18,7 @@ gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/all_gene
     dplyr::rename(id = gene_id) %>%
     mutate(id = ifelse(type=='tRNA', name, id)) %>%
     mutate(id = ifelse(grepl('MT',id), str_replace(id,'[0-9]$',''), id)) %>%
+    distinct() %>%
 #    mutate(type= ifelse(grepl('MT-T',name),'tRNA',type)) %>% 
     tbl_df
 
@@ -107,7 +108,8 @@ s_p <- ggplot() +
     geom_point(data = fc_df %>% arrange(baseMean_AB),# %>% filter(grepl('^TR|tR|[ACTG]{3}$',id)), 
                aes(color = labeling,x=logFC_AB, y = logFC_CD, alpha=labeling))  + 
     labs(x = 'log(fold change AB)', y = 'log(fold change CD)', color = ' ') +
-    facet_grid(.~analytic_type+map_type) +
+#    facet_grid(.~analytic_type+map_type) +
+    facet_grid(.~map_type) +
     xlim(-10,10) +
     ylim(-2,2) +
     geom_text(x = -7, data = rsquare, 
@@ -125,13 +127,10 @@ s_p <- ggplot() +
 message('Plotted S curve')
 
 
-
-
 fc_type_df <- gene_file %>% 
     select(id,name,type) %>% 
-    unique %>% 
-    inner_join(fc_df) %>% 
-    mutate(type = sapply(type,changeType))
+    distinct() %>% 
+    inner_join(fc_df) 
 
 
 colors_type <- RColorBrewer::brewer.pal(12,'Paired')
@@ -139,34 +138,24 @@ type_p <- ggplot() +
     geom_point(data = fc_type_df %>% arrange(baseMean_AB), 
                aes(shape = labeling, color = type, x=logFC_AB, y =logFC_CD, alpha=labeling))  + 
     labs(x = 'log(fold change AB)', y = 'log(fold change CD)', color = ' ', shape = ' ') +
-    facet_grid(.~analytic_type+map_type) +
+#    facet_grid(.~analytic_type+map_type) +
+    facet_grid(.~map_type) +
     xlim(-10,10) +
     ylim(-2,2) +
     geom_line(data = fc_df, aes(x = logFC_AB, y = predict), color ='red') +
     scale_color_manual(values = colors_type) +
     scale_alpha_manual(values = c(0.1,1,1,1), guide=F) +
     panel_border()
-p <- plot_grid(s_p,type_p,
-               s_p +
-                    ggrepel::geom_label_repel(data = fc_df %>% 
-                                  filter(labeling %in% c('Top 1%','Top 10%')) %>% 
-                                  group_by(labeling, analytic_type, map_type) %>%
-                                  top_n(5,error),
-                              aes(x=logFC_AB, y = logFC_CD, label = name, color = labeling)),
-               ncol=1,align='v',
-               labels = letters[1:3])
+
+
 figurepath <- str_c(project_path, '/figures')
-figurename <- str_c(figurepath, '/fold_change.png')
-save_plot(p , file=figurename,  base_width=14, base_height=14) 
-message('Saved: ', figurename)
-
-
 figurename <- str_c(figurepath, '/signif_genes_corr.png')
 png(figurename)
 sig_DE_df <- fc_df %>% 
     filter(padj_AB<0.05) %>% 
     mutate(map_type =  make.names(str_c(analytic_type, '_',map_type))) %>%
     select(map_type, padj_AB, id) %>%
+    unique() %>%
     spread(map_type, padj_AB) %>%
     tbl_df
 sig_scatter <- GGally::ggpairs(sig_DE_df, 2:5)
@@ -180,7 +169,7 @@ per_type_r2_df <- fc_type_df  %>%
             rmse = sqrt(mean(error^2)),
             samplesize=n()) %>%
     ungroup() %>%
-    mutate(prep = str_c(analytic_type, map_type,sep='\n')) %>%
+    mutate(prep = str_c(map_type,sep='\n')) %>%
     tbl_df
 rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)), 
        aes(x=prep,y=rmse, fill=prep)) + 
@@ -194,8 +183,22 @@ rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)),
     theme(legend.key.height = unit(2,'line')) +
     theme(legend.position = c(0.9,0.2)) +
     ylim(0,0.8)
-source('~/R/legend_to_color.R')
-figurepath <- str_c(project_path, '/figures')
-figurename <- str_c(figurepath, '/rmse_type_figure.png')
-save_plot(rmse_type_p, file=figurename,  base_width=14, base_height=14) 
+
+p <- plot_grid(s_p,rmse_type_p,ncol=1,align='v',
+               labels = letters[1:2])
+
+p2 <- plot_grid(type_p,
+                s_p +
+                    ggrepel::geom_label_repel(data = fc_df %>% 
+                                  filter(labeling %in% c('Top 1%','Top 10%')) %>% 
+                                  group_by(labeling, analytic_type, map_type) %>%
+                                  top_n(5,error),
+                              aes(x=logFC_AB, y = logFC_CD, label = name, color = labeling)),
+               ncol=1,align='v',
+               labels = letters[1:2])
+figurename <- str_c(figurepath, '/fold_change_all_gene.png')
+save_plot(p , file=figurename,  base_width=14, base_height=14) 
+message('Saved: ', figurename)
+figurename <- str_c(figurepath, '/fold_change_supplementary.png')
+save_plot(p2 , file=figurename,  base_width=14, base_height=14) 
 message('Saved: ', figurename)

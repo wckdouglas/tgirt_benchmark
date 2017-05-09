@@ -114,7 +114,7 @@ echo 'Made gtf'
 SAF_FILE=$TRANSCRIPTOME/genes.SAF
 echo 'GeneID\tchr\tstart\tend\tstrand' > $SAF_FILE
 awk '{print $NF,$1,$2,$3,$6}' OFS='\t' $TRANSCRIPTOME/genes.bed >> $SAF_FILE
-python split_bed_for_count.py $TRANSCRIPTOME $TRANSCRIPTOME/transcripts.tsv
+python split_bed_for_count.py $TRANSCRIPTOME
 echo 'Made bed for count and SAF file'
 
 # get union gene set

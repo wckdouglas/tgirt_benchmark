@@ -140,15 +140,16 @@ message('Plotted: ', figurename)
     
 
 figurename <- file.path(figurepath, 'pair_type.png')
-png(figurename)
-merge_df %>% 
+png(figurename,width = 1080, height = 1080)
+matrix_df <- merge_df %>% 
         filter(grepl('Sample_A',samplename)) %>%
         group_by(map_type, id, type) %>%
         summarize(abundance = log2(mean(abundance)+1)) %>%
         ungroup()  %>%
         spread(map_type, abundance) %>%
-        select(-id) %>% 
-        GGally::ggpairs(aes(color = type))
+        select(-id)  
+GGally::ggpairs(matrix_df, 
+                columns = names(matrix_df%>%select(-type)),aes(alpha=0.7,color = type))
 dev.off()
 message('Plotted: ', figurename)
 

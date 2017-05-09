@@ -74,7 +74,7 @@ def rRNA_name(name,type):
     if type == 'rRNA':
         if '5S' in name:
             name = '5S_rRNA'
-        if '5_8S_r' in name or '5-8S' in name:
+        elif '5_8S_r' in name or '5-8S' in name:
             name = '5.8S_rRNA'
     else:
         name = name
