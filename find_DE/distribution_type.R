@@ -139,17 +139,20 @@ ggsave(p, file=figurename, width = 10,height=10)
 message('Plotted: ', figurename)
     
 
-figurename <- file.path(figurepath, 'pair_type.png')
-png(figurename,width = 1080, height = 1080)
-matrix_df <- merge_df %>% 
-        filter(grepl('Sample_A',samplename)) %>%
+plot_pairs <- function(sample_type, merge_df){
+    figurename <- str_c(figurepath, '/pair_type',sample_type,'.png')
+    png(figurename,width = 1080, height = 1080)
+    matrix_df <- merge_df %>% 
+        filter(grepl(sample_type,samplename)) %>%
         group_by(map_type, id, type) %>%
         summarize(abundance = log2(mean(abundance)+1)) %>%
         ungroup()  %>%
         spread(map_type, abundance) %>%
         select(-id)  
-GGally::ggpairs(matrix_df, 
+    GGally::ggpairs(matrix_df, 
                 columns = names(matrix_df%>%select(-type)),aes(alpha=0.7,color = type))
-dev.off()
-message('Plotted: ', figurename)
+    dev.off()
+    message('Plotted: ', figurename)
+}
 
+ps = lapply(merge_df$samplename %>% unique, plot_pairs, merge_df)
