@@ -61,12 +61,14 @@ def union_type(x, y):
         out_type = ','.join(types)
     return out_type
 
-def mt_tRNA(x,y):
+def mt_tRNA(name,in_type):
     type = ''
-    if 'MT' in str(x) and y =='tRNA':
+    if 'MT' in str(name) and in_type =='tRNA':
         type = 'Mt'
+    elif (str(name).startswith('VT') or name == 'Vault') and in_type == 'Other sncRNA':
+        type = 'vaultRNA'
     else:
-        type = y
+        type = in_type
     return type
 
 def rRNA_name(name,type):
@@ -85,8 +87,8 @@ t_tab = transcript_table()
 bed = genes_bed()
 df = t_tab.merge(bed, how='outer', on ='gene_id') \
     .assign(type = lambda d:map(union_type, d.type, d.gene_type)) \
-    .assign(type = lambda d: map(mt_tRNA, d.name, d.type))\
     .assign(t_id = lambda d: d.t_id.fillna('NA')) \
+    .assign(type = lambda d: map(mt_tRNA, d.name, d.type))\
     .assign(name = lambda d: map(rRNA_name, d.name, d.type)) \
     .drop(['gene_name','gene_type'], axis=1) 
 union_gene = gene_path + '/all_genes.tsv'

@@ -7,14 +7,7 @@ library(stringr)
 library(tidyr)
 library(feather)
 library(purrr)
-
-
-#======set up change type funciton
-count_to_tpm <- function(counts, lengths) {
-    rate <- counts / lengths
-    out_tpm <- rate / sum(rate,na.rm=T) * 1e6
-    return(out_tpm)
-}
+library(VennDiagram)
 
 
 #read files
@@ -62,24 +55,14 @@ genome_df <- map2(files, labels, function(x,y) read_tsv(x) %>%
 #       gene_length = mean(gene_length)
     ) %>%
     ungroup() %>%
-#    mutate(tpm = count_to_tpm(abundance, gene_length)) %>%
-#    select(-abundance, - gene_length) %>%
-#    dplyr::rename(abundance=tpm) %>%
     tbl_df
 
 merge_df <- rbind(genome_df, alignment_free) %>%
+    mutate(id = str_replace(id, '[0-9]-$','')) %>%
     inner_join(gene_file) %>%
+    group_by(map_type,samplename, id, name,type) %>%
+    summarize(abundance = sum(abundance)) %>%
     tbl_df
-
-merge_df <-  merge_df %>% 
-    filter(samplename == 'Sample_A_1') %>%
-    group_by(id,samplename) %>% 
-    summarize(count = n(), 
-              types = str_c(map_type,collapse=',')) %>% 
-    filter(count == 4) %>%
-    select(-samplename, -types, count) %>%
-    inner_join(merge_df) %>%
-    ungroup() 
 
 
 plot_df <- merge_df %>% 
@@ -91,7 +74,7 @@ plot_df <- merge_df %>%
     mutate(samplename = str_replace(samplename, '_','')) %>%
     mutate(type = forcats::fct_reorder(type, gene_count , sum))
 #make color
-colors <- RColorBrewer::brewer.pal(9,'Set1')
+colors <- RColorBrewer::brewer.pal(12,'Set3')
 gene_count_p <- ggplot(data = plot_df,
         aes(x = samplename, y = gene_count, fill = type)) +
     geom_bar(stat='identity') +
@@ -139,7 +122,8 @@ ggsave(p, file=figurename, width = 10,height=10)
 message('Plotted: ', figurename)
     
 
-plot_pairs <- function(sample_type, merge_df){
+samples <- merge_df$samplename %>% str_replace(.,'_[123]','') %>% unique
+for (sample_type in samples){
     figurename <- str_c(figurepath, '/pair_type',sample_type,'.png')
     png(figurename,width = 1080, height = 1080)
     matrix_df <- merge_df %>% 
@@ -149,10 +133,77 @@ plot_pairs <- function(sample_type, merge_df){
         ungroup()  %>%
         spread(map_type, abundance) %>%
         select(-id)  
-    GGally::ggpairs(matrix_df, 
+    p <- GGally::ggpairs(matrix_df, 
                 columns = names(matrix_df%>%select(-type)),aes(alpha=0.7,color = type))
+    print(p)
     dev.off()
     message('Plotted: ', figurename)
 }
 
-ps = lapply(merge_df$samplename %>% unique, plot_pairs, merge_df)
+
+plot_venn <- function(which_sample,d){
+    colors <- gg_color_hue(4)
+    plot_df <- d %>% filter(samplename == which_sample)
+    samples <- plot_df %>% filter(!grepl(',',maps)) %>% .$maps
+    sample_1 <- samples[1]
+    sample_2 <- samples[2]
+    sample_3 <- samples[3]
+    sample_4 <- samples[4]
+
+    figurename <- str_c(figurepath,'/venn_gene_',which_sample,'.pdf')
+    figurename <- str_replace_all(figurename,' ','_')
+    pdf(figurename, width = 15, height=10)
+    venn.plot <- draw.quad.venn(
+                area1 = filter(plot_df, grepl(sample_1,maps))$number_of_genes %>% sum,
+                area2 = filter(plot_df, grepl(sample_2,maps))$number_of_genes %>% sum,
+                area3 = filter(plot_df, grepl(sample_3,maps))$number_of_genes %>% sum,
+                area4 = filter(plot_df, grepl(sample_4,maps))$number_of_genes %>% sum,
+
+                n12 = filter(plot_df, grepl(sample_1,maps), grepl(sample_2,maps))$number_of_genes %>% sum,
+                n13 = filter(plot_df, grepl(sample_1,maps), grepl(sample_3,maps))$number_of_genes %>% sum,
+                n14 = filter(plot_df, grepl(sample_1,maps), grepl(sample_4,maps))$number_of_genes %>% sum,
+                n23 = filter(plot_df, grepl(sample_2,maps), grepl(sample_3,maps))$number_of_genes %>% sum,
+                n24 = filter(plot_df, grepl(sample_2,maps), grepl(sample_4,maps))$number_of_genes %>% sum,
+                n34 = filter(plot_df, grepl(sample_3,maps), grepl(sample_4,maps))$number_of_genes %>% sum,
+
+                n123 = filter(plot_df, grepl(sample_1,maps),
+                              grepl(sample_2,maps), grepl(sample_3,maps))$number_of_genes %>% sum,
+                n124 = filter(plot_df, grepl(sample_1,maps),
+                              grepl(sample_2,maps), grepl(sample_4, maps))$number_of_genes %>% sum,
+                n134 = filter(plot_df, grepl(sample_1,maps),
+                              grepl(sample_3,maps), grepl(sample_4, maps))$number_of_genes %>% sum,
+                n234 = filter(plot_df, grepl(sample_2,maps),
+                              grepl(sample_3,maps), grepl(sample_4, maps))$number_of_genes %>% sum,
+
+                n1234 = filter(plot_df, maps == str_c(sample_1, sample_2,
+                                                      sample_3, sample_4,sep=','))$number_of_genes %>% sum,
+                category = samples,
+                fill = colors,
+                lty = "dashed",
+                cex = 1.5, cat.cex = 1.5,
+                cat.col = colors)
+    dev.off()
+    message('Plotted: ', figurename)
+}
+
+gg_color_hue <- function(n) {
+    hues = seq(15, 375, length = n + 1)
+    hcl(h = hues, l = 65, c = 100)[1:n]
+}
+
+
+venn_Df <- merge_df %>% 
+    mutate(samplename = str_replace(samplename,'_[1-3]$','')) %>%
+    group_by(samplename, id, name, type, map_type) %>%
+    summarize(abundance = sum(abundance)) %>%
+    filter(abundance > 0)  %>% 
+    ungroup() %>%
+    group_by(samplename,id,name,type) %>% 
+    summarize(maps = str_c(unique(map_type), collapse=',')) %>% 
+    ungroup %>% 
+    group_by(maps, samplename) %>% 
+    summarize(number_of_genes = n()) %>%
+    ungroup()
+
+ps <- lapply(venn_Df$samplename%>%unique,plot_venn, venn_Df)
+
