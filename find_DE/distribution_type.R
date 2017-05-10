@@ -144,7 +144,7 @@ for (sample_type in samples){
 plot_venn <- function(which_sample,d){
     colors <- gg_color_hue(4)
     plot_df <- d %>% filter(samplename == which_sample)
-    samples <- plot_df %>% filter(!grepl(',',maps)) %>% .$maps
+    samples <- plot_df %>% filter(!grepl(',',maps)) %>% .$maps %>%unique
     sample_1 <- samples[1]
     sample_2 <- samples[2]
     sample_3 <- samples[3]
@@ -201,6 +201,8 @@ venn_Df <- merge_df %>%
     group_by(samplename,id,name,type) %>% 
     summarize(maps = str_c(unique(map_type), collapse=',')) %>% 
     ungroup %>% 
+    tbl_df 
+ venn_Df<-venn_Df %>%   
     group_by(maps, samplename) %>% 
     summarize(number_of_genes = n()) %>%
     ungroup()
