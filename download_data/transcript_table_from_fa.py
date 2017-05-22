@@ -21,6 +21,9 @@ for line in fileinput.input():
                 type=field.split(':')[1]
             elif field.startswith('gene_symbol:'):
                 name = field.split(':')[1]
+        if type == 'rRNA':
+            if '5SP' in name:
+                name = '5S_rRNA'
+            if '5_8S_r' in name or '5-8S' in name:
+                name = '5.8S_rRNA'
         print '\t'.join([gene_id, name, tid, type])
-                
-    

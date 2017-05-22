@@ -53,5 +53,3 @@ maqc_expr_data <- gset@assayData$exprs %>%
 expr_data <- str_c(work_path, '/taqman_fc_table.feather')
 write_feather(maqc_expr_data,expr_data)
 message('Written: ', expr_data)
-
-

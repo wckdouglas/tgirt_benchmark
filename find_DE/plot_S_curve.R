@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-library(robustbase)
+#library(robustbase)
 library(readr)
 library(stringr)
 library(tibble)
@@ -12,11 +12,17 @@ library(cowplot)
 library(feather)
 
 # read gene table
-gene_file <- '/stor/work/Lambowitz/ref/GRCh38/transcripts.tsv' %>%
-    read_tsv()  %>%
-    dplyr::rename(target_id=t_id) %>%
+gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/all_genes.tsv'  %>%
+    read_tsv() %>%
+    select(gene_id, name,type) %>% 
+    dplyr::rename(id = gene_id) %>%
+    mutate(id = ifelse(type=='tRNA', name, id)) %>%
+    mutate(id = ifelse(grepl('MT',id), str_replace(id,'[0-9]$',''), id)) %>%
+    distinct() %>%
+#    mutate(type= ifelse(grepl('MT-T',name),'tRNA',type)) %>% 
     tbl_df
 
+# check <- gene_file %>% group_by(id) %>% summarize(a=n()) %>% filter(a>1)
 # read all tables ====================================================
 project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
 df <- project_path %>%
@@ -61,9 +67,8 @@ fc_df <- df %>%
     #unnest(data,predict) %>%
     mutate(error = logFC_CD - predict) %>% 
     ungroup() %>%
-    mutate(analytic_type = ifelse(grepl('multimap',map_type),'Genome Mapping','Alignment-free')) %>%
+    mutate(analytic_type = ifelse(grepl('pipe',map_type),'Genome Mapping','Alignment-free')) %>%
     inner_join(gene_file %>% 
-                   dplyr::rename(id=gene_id) %>% 
                    select(id,name,type) %>% 
                    unique,
                by = 'id') %>%
@@ -103,7 +108,8 @@ s_p <- ggplot() +
     geom_point(data = fc_df %>% arrange(baseMean_AB),# %>% filter(grepl('^TR|tR|[ACTG]{3}$',id)), 
                aes(color = labeling,x=logFC_AB, y = logFC_CD, alpha=labeling))  + 
     labs(x = 'log(fold change AB)', y = 'log(fold change CD)', color = ' ') +
-    facet_grid(.~analytic_type+map_type) +
+#    facet_grid(.~analytic_type+map_type) +
+    facet_grid(.~map_type) +
     xlim(-10,10) +
     ylim(-2,2) +
     geom_text(x = -7, data = rsquare, 
@@ -118,80 +124,44 @@ s_p <- ggplot() +
     scale_color_manual(values = colors) +
     scale_alpha_manual(values = c(0.1,1,1,1), guide=F) +
     panel_border()
+message('Plotted S curve')
 
-
-# make type FC
-#======set up change type funciton
-ncRNA=c("sense_intronic","3prime_overlapping_ncrna",'processed_transcript',
-        'sense_overlapping','Other_lncRNA')
-smncRNA=c('misc_RNA','snRNA','piRNA')
-large_rRNA=c('28S_rRNA','18S_rRNA')
-small_rRNA=c('rRNA','5S_rRNA','58S_rRNA','5.8S_rRNA')
-protein_coding = c('protein_coding','TR','IG')
-
-changeType <- function(x){
-    if (x %in% ncRNA){
-        'Other ncRNA'
-    }else if (grepl('TR|IG|protein',x)){
-        'Protein coding'
-    }else if (grepl('Mt_',x)){
-        'Mt'
-    }else if (grepl('tRNA',x)){
-        'tRNA'
-    }else if (x %in% small_rRNA){
-        '5/5.8S rRNA'
-    }else if (x %in% large_rRNA){
-        '18/28S rRNA'
-    }else if (x %in% smncRNA){
-        'Other sncRNA'
-    }else if (grepl('pseudogene',x)){
-        'Pseudogenes'
-    }else {
-        x
-    }
-}
 
 fc_type_df <- gene_file %>% 
-    dplyr::rename(id=gene_id) %>% 
     select(id,name,type) %>% 
-    unique %>% 
-    inner_join(fc_df) %>% 
-    mutate(type = sapply(type,changeType))
+    distinct() %>% 
+    inner_join(fc_df) 
+
 
 colors_type <- RColorBrewer::brewer.pal(12,'Paired')
 type_p <- ggplot() + 
     geom_point(data = fc_type_df %>% arrange(baseMean_AB), 
-               aes(shape = labeling, color = type,x=logFC_AB, y =logFC_CD, alpha=labeling))  + 
+               aes(shape = labeling, color = type, x=logFC_AB, y =logFC_CD, alpha=labeling))  + 
     labs(x = 'log(fold change AB)', y = 'log(fold change CD)', color = ' ', shape = ' ') +
-    facet_grid(.~analytic_type+map_type) +
+#    facet_grid(.~analytic_type+map_type) +
+    facet_grid(.~map_type) +
     xlim(-10,10) +
     ylim(-2,2) +
     geom_line(data = fc_df, aes(x = logFC_AB, y = predict), color ='red') +
     scale_color_manual(values = colors_type) +
     scale_alpha_manual(values = c(0.1,1,1,1), guide=F) +
     panel_border()
-p <- plot_grid(s_p,type_p,
-               s_p +
-                    ggrepel::geom_label_repel(data = fc_df %>% 
-                                  filter(labeling %in% c('Top 1%','Top 10%')) %>% 
-                                  group_by(labeling, analytic_type, map_type) %>%
-                                  top_n(5,error),
-                              aes(x=logFC_AB, y = logFC_CD, label = name)),
-               ncol=1,align='v')
+
+
 figurepath <- str_c(project_path, '/figures')
-figurename <- str_c(figurepath, '/fold_change.png')
-save_plot(p , file=figurename,  base_width=14, base_height=14) 
+figurename <- str_c(figurepath, '/signif_genes_corr.png')
+png(figurename)
+sig_DE_df <- fc_df %>% 
+    filter(padj_AB<0.05) %>% 
+    mutate(map_type =  make.names(str_c(analytic_type, '_',map_type))) %>%
+    select(map_type, padj_AB, id) %>%
+    unique() %>%
+    spread(map_type, padj_AB) %>%
+    tbl_df
+sig_scatter <- GGally::ggpairs(sig_DE_df, 2:5)
+dev.off()
 message('Saved: ', figurename)
 
-
-sig_DE_df <- fc_df %>% 
-    filter(adj.P.Val_AB<0.05) %>% 
-    mutate(map_type =  make.names(str_c(analytic_type, '_',map_type))) %>%
-    select(map_type, adj.P.Val_AB, id) %>%
-    spread(map_type, adj.P.Val_AB) %>%
-    tbl_df
-
-sig_scatter <- GGally::ggpairs(sig_DE_df, 2:4)
 
 per_type_r2_df <- fc_type_df  %>% 
     group_by(type,map_type,analytic_type) %>%     
@@ -199,7 +169,7 @@ per_type_r2_df <- fc_type_df  %>%
             rmse = sqrt(mean(error^2)),
             samplesize=n()) %>%
     ungroup() %>%
-    mutate(prep = str_c(analytic_type, map_type,sep='\n')) %>%
+    mutate(prep = str_c(map_type,sep='\n')) %>%
     tbl_df
 rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)), 
        aes(x=prep,y=rmse, fill=prep)) + 
@@ -213,8 +183,22 @@ rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)),
     theme(legend.key.height = unit(2,'line')) +
     theme(legend.position = c(0.9,0.2)) +
     ylim(0,0.8)
-source('~/R/legend_to_color.R')
-figurepath <- str_c(project_path, '/figures')
-figurename <- str_c(figurepath, '/rmse_type_figure.png')
-save_plot(rmse_type_p, file=figurename,  base_width=14, base_height=14) 
+
+p <- plot_grid(s_p,rmse_type_p,ncol=1,align='v',
+               labels = letters[1:2])
+
+p2 <- plot_grid(type_p,
+                s_p +
+                    ggrepel::geom_label_repel(data = fc_df %>% 
+                                  filter(labeling %in% c('Top 1%','Top 10%')) %>% 
+                                  group_by(labeling, analytic_type, map_type) %>%
+                                  top_n(5,error),
+                              aes(x=logFC_AB, y = logFC_CD, label = name, color = labeling)),
+               ncol=1,align='v',
+               labels = letters[1:2])
+figurename <- str_c(figurepath, '/fold_change_all_gene.png')
+save_plot(p , file=figurename,  base_width=14, base_height=14) 
+message('Saved: ', figurename)
+figurename <- str_c(figurepath, '/fold_change_supplementary.png')
+save_plot(p2 , file=figurename,  base_width=14, base_height=14) 
 message('Saved: ', figurename)

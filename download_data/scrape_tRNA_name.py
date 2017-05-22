@@ -40,6 +40,10 @@ def assign_tRNA_number(anticodon_df):
         .pipe(lambda d: d[['tRNA Name','tRNA_id','Locus','Score']]) 
     return new_d
 
+def add_nm_tRNA(id, name):
+    id = id
+    if 'nm' in name:
+        return 'NM' + id 
 
 def get_table(url, name):
 # using browser to get to the page
@@ -83,6 +87,7 @@ def get_table(url, name):
         .pipe(lambda d: d[['chrom','start', 'end', 'tRNA_name',
                            'score','strand','type','tRNA_id','tRNA Name']])
 
+#        .assign(tRNA_id = lambda d: map(add_nm_tRNA, d.tRNA_id, d.tRNA_name))
     df.to_csv(tab_name,sep='\t',index=False)
     print 'Written %s' %tab_name
     browser.close()

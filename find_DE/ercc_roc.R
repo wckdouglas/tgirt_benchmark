@@ -10,13 +10,12 @@ library(tidyr)
 library(purrr)
 
 # read gene table
-ercc_file <- '/stor/work/Lambowitz/ref/RNASeqConsortium/ercc/ercc_table.tsv' %>%
+ercc_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/ercc_annotation.tsv' %>%
     read_tsv()  %>%
     tbl_df
 
 # read all tables ====================================================
 project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
-
 
 df <- file.path(project_path, 'DEgenes') %>%
     list.files(path=., pattern = '.feather', full.names=T) %>%
@@ -93,7 +92,7 @@ roc_p <- ggplot(data=roc_df %>% arrange(tpr), aes(x = fpr, y = tpr, color = map_
     geom_abline(slope = 1, intercept = 0)
 
 
-p <- plot_grid(ercc_de_p, roc_p, ncol=1)
+p <- plot_grid(ercc_de_p, roc_p, ncol=1, labels = letters[1:2])
 figurepath <- str_c(project_path, '/figures')
 figurename <- str_c(figurepath, '/ercc_roc.png')
 save_plot(p, file=figurename,  base_width=10, base_height=10) 

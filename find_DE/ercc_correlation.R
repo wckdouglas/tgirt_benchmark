@@ -2,8 +2,10 @@
 
 library(readr)
 library(dplyr)
+library(tidyr)
 library(cowplot)
 library(stringr)
+library(purrr)
 library(feather)
 
 
@@ -16,13 +18,13 @@ get_sample_number <- function(samplename){
     return(as.numeric(id))
 }
 
-gene_file <- '/stor/work/Lambowitz/ref/human_transcriptome/transcripts.tsv'  %>%
+gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcripts.tsv'  %>%
     read_tsv() %>%
     select(gene_id, name,type) %>% 
     unique %>%
     dplyr::rename(id = gene_id)
 
-ercc_file <- '/stor/work/Lambowitz/ref/human_transcriptome/ercc_annotation.tsv' %>%
+ercc_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/ercc_annotation.tsv' %>%
     read_tsv() %>%
     inner_join(gene_file)
 
@@ -36,8 +38,8 @@ alignment_free <- project_path %>%
     map_df(read_feather) 
     
 # read genome mapping count files
-files <- c(file.path(project_path, 'genome_mapping/conventional/feature_counts.tsv'),
-        file.path(project_path,'genome_mapping/pipeline7/Counts/RAW/combined_gene_count.tsv'))
+files <- c(file.path(project_path, 'genome_mapping/Trim/conventional/counts/feature_counts.tsv'),
+        file.path(project_path,'genome_mapping/Counts/RAW/combined_gene_count.tsv'))
 labels <- c('conventional','customized')
 genome_df <- map2(files, labels, function(x,y) read_tsv(x) %>% 
                                                 mutate(map_type=y) %>%
@@ -65,6 +67,7 @@ ercc_lm <- ggplot(data = lm_df, aes(x = log2(conc), y = log2(abundance), color =
     ggpmisc::stat_poly_eq(formula = formula, parse = TRUE) +
     facet_grid(group~map_type)+
     panel_border() +
+    scale_color_manual(values = c('deepskyblue3','forestgreen'))
     labs(x = 'log2(concentration (amol/ul))', y = 'log2(abundance (TPM or read counts)') +
     theme(legend.position = 'none')
 

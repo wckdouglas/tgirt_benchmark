@@ -1,14 +1,16 @@
 #!/bin/bash
 
-TRNA_FA=/stor/work/Lambowitz/ref/human_transcriptome/tRNA.fa.fai
-TRANSCRIPTS_BED=/stor/work/Lambowitz/ref/RNASeqConsortium/genes.bed
-TRANSCRIPT_LENGTH=/stor/work/Lambowitz/ref/human_transcriptome/genes.length
+REF_PATH=$REF/benchmarking/human_transcriptome
+TRNA_FA=$REF_PATH/tRNA.fa
+TRANSCRIPTS_BED=$REF_PATH/genes.bed
+TRANSCRIPT_LENGTH=$REF_PATH/genes.length
 
 cat $TRANSCRIPTS_BED \
 	| awk '{print $NF, $3-$2}' OFS='\t'  \
 	| sed 1i"id\tgene_length"  \
 	> $TRANSCRIPT_LENGTH
 
-cat $TRNA_FA \
+samtools faidx $TRNA_FA
+cat ${TRNA_FA}.fai \
 	| cut -f1,2 \
 	>> $TRANSCRIPT_LENGTH	

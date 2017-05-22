@@ -29,7 +29,7 @@ def readSample(count_file_path, tRNA_count_path, sample_id):
 
 def main():
     work = os.environ['WORK']
-    count_path = work + '/cdw2854/bench_marking/genome_mapping/pipeline7/Counts'
+    count_path = work + '/cdw2854/bench_marking/genome_mapping/Counts'
     count_file_path = count_path + '/RAW'
     tRNA_count_path = count_path + '/tRNA_RAW'
     count_files = glob.glob(count_file_path + '/*counts')

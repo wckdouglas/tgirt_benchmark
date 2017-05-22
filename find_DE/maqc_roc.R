@@ -16,7 +16,12 @@ taqman <- '/stor/work/Lambowitz/cdw2854/bench_marking/maqc/taqman_fc_table.feath
     mutate(real_FC_CD = ifelse(abs(logFC_CD)>0.5, 'DE','notDE')) %>%
     rename(taqman_fc_AB = logFC_AB) %>%
     rename(taqman_fc_CD = logFC_CD) %>%
-    dplyr::select(id, real_FC_AB, real_FC_CD, taqman_fc_AB, taqman_fc_CD)
+    dplyr::select(id, real_FC_AB, real_FC_CD, taqman_fc_AB, taqman_fc_CD) %>%
+    gather(variable, value, -id) %>% 
+    mutate(comparison = str_sub(variable,-2,-1)) %>% 
+    mutate(variable = str_sub(variable,1,-4))    %>%
+    spread(variable, value) %>%
+    mutate(taqman_fc = as.numeric(taqman_fc))
 
 # read all tables ====================================================
 project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
@@ -26,11 +31,10 @@ df <- project_path %>%
     .[!grepl('abundance',.)] %>%
     map_df(read_feather) %>%
     gather(variable, value, -id, -map_type, - comparison) %>%
-    filter(grepl('pvalue', variable)) %>%
+    filter(grepl('pvalue|log2FoldChange', variable)) %>%
     mutate(comparison = str_replace(comparison,' vs ','')) %>%
     spread(variable, value) %>%
     inner_join(taqman) %>%
-    mutate(real_FC = ifelse(comparison=='CD',real_FC_CD, real_FC_AB)) %>%
     tbl_df
     
 
@@ -58,13 +62,13 @@ roc_plot_df <- roc_df %>%
 gene_roc_p <- ggplot(data=roc_plot_df, aes(x = fpr, y = tpr, color = map_type)) +
     geom_line()+
     labs(x = 'False positive rate', y = 'True positive rate', color = ' ') +
-    theme(legend.position = c(0.5,0.25)) +
+    theme(legend.position = c(0.7,0.25)) +
     geom_abline(slope = 1, intercept = 0)
 
 
 rmsd_df <- df %>%
-    dplyr::select(map_type, log2FoldChange_AB, taqman_fc_AB) %>%
-    mutate(sq_error = (log2FoldChange_AB - taqman_fc_AB)^2) %>%
+    dplyr::select(map_type, log2FoldChange, taqman_fc) %>%
+    mutate(sq_error = (log2FoldChange - taqman_fc)^2) %>%
     group_by(map_type) %>%
     summarize(rmse = sqrt(mean(sq_error, na.rm=T))) %>%
     ungroup() 
@@ -72,9 +76,10 @@ rmsd_df <- df %>%
 rmse_bar <- ggplot(data=rmsd_df, aes(x = map_type, y = rmse, fill=map_type)) +
     geom_bar(stat='identity') +
     labs(x = ' ', y = 'RMSE (RNA-seq vs TaqMan)') +
-    theme(legend.position = 'none')
+    theme(legend.position = 'none') +
+    theme(axis.text.x = element_blank())
 
-p <- plot_grid(rmse_bar, gene_roc_p)
+p <- plot_grid(rmse_bar, gene_roc_p, labels = letters[1:2])
 figurepath <- str_c(project_path, '/figures')
 figurename <- str_c(figurepath, '/taqman_roc.png')
 save_plot(p, file=figurename,  base_width=12, base_height=8) 
