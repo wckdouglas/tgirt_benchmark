@@ -63,7 +63,8 @@ ercc_de_p<-ggplot()+
     facet_grid(~map_type) +
     labs(x = 'log2(average expression)', 
          y = 'log2(Fold change between AB)', 
-         color = ' ')
+         color = ' ') +
+    scale_color_manual(values = RColorBrewer::brewer.pal(8, "Dark2"))
 
 # 23 non DE in ERCC, 69 DE
 ercc_roc_df <- df %>% 
@@ -94,6 +95,6 @@ roc_p <- ggplot(data=roc_df %>% arrange(tpr), aes(x = fpr, y = tpr, color = map_
 
 p <- plot_grid(ercc_de_p, roc_p, ncol=1, labels = letters[1:2])
 figurepath <- str_c(project_path, '/figures')
-figurename <- str_c(figurepath, '/ercc_roc.png')
+figurename <- str_c(figurepath, '/ercc_roc.pdf')
 save_plot(p, file=figurename,  base_width=10, base_height=10) 
 message('Saved: ', figurename)

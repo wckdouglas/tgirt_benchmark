@@ -32,28 +32,17 @@ ercc_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/ercc_ann
 
 #read alignment free abundance file from tximport
 project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
-alignment_free <- project_path %>%
+df <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern='abundance', full.names=T) %>%
-    map_df(read_feather) 
-    
-# read genome mapping count files
-files <- c(file.path(project_path, 'genome_mapping/Trim/conventional/counts/feature_counts.tsv'),
-        file.path(project_path,'genome_mapping/Counts/RAW/combined_gene_count.tsv'))
-labels <- c('conventional','customized')
-genome_df <- map2(files, labels, function(x,y) read_tsv(x) %>% 
-                                                mutate(map_type=y) %>%
-                                                set_names(str_replace_all(names(.),'-','_'))) %>%
-    purrr::reduce(rbind)
-
-#merge two data frame and look at ERCC spikeins only
-df <- rbind(genome_df, alignment_free) %>%
+    map_df(read_feather) %>%
     gather(samplename, abundance, -id, -map_type) %>%
     inner_join(gene_file) %>%
     filter(type=='ERCC') %>%
     mutate(sample_mix = get_mix(samplename)) %>%
     mutate(sample_id = get_sample_number(samplename)) %>%
     inner_join(ercc_file)
+
 
 lm_df <- df %>%
     filter(group %in% c('A','B')) %>%
@@ -67,9 +56,9 @@ ercc_lm <- ggplot(data = lm_df, aes(x = log2(conc), y = log2(abundance), color =
     ggpmisc::stat_poly_eq(formula = formula, parse = TRUE) +
     facet_grid(group~map_type)+
     panel_border() +
-    scale_color_manual(values = c('deepskyblue3','forestgreen'))
+    scale_color_manual(values = RColorBrewer::brewer.pal(8, "Dark2")) +
     labs(x = 'log2(concentration (amol/ul))', y = 'log2(abundance (TPM or read counts)') +
-    theme(legend.position = 'none')
+    theme(legend.position = 'none') 
 
 r2_df <- lm_df %>%
     mutate(log2_abundance = log2(abundance)) %>%

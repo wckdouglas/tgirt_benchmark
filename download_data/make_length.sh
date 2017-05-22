@@ -12,5 +12,5 @@ cat $TRANSCRIPTS_BED \
 
 samtools faidx $TRNA_FA
 cat ${TRNA_FA}.fai \
-	| cut -f1,2 \
+	| awk '{print $1, $2-3}' OFS='\t' \
 	>> $TRANSCRIPT_LENGTH	
