@@ -69,7 +69,7 @@ cat $TRANSCRIPTOME/genes.bed \
 	| bedtools getfasta  -fi $GENOME_PATH/reference.fa -bed - -s -name -tab \
 	| tr ':' '\t' \
 	| awk '{printf ">%s\n%s\n",$1,$NF}' \
-	>> $tRNA_PATH/mt_tRNA.fa
+	> $tRNA_PATH/mt_tRNA.fa
 echo 'Finished making tRNA'
 cat $tRNA_PATH/mt_tRNA.fa $tRNA_PATH/nucleo_tRNA.fa > $TRANSCRIPTOME/tRNA.fa
 

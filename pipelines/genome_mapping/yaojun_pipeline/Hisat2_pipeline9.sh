@@ -57,8 +57,7 @@ num_of_file=$(ls $file|wc -l)
 if [ $num_of_file != 2 ];then echo "More than 2 files share the same sample name, make sure the name is uniq and you have PE reads"; exit 1;fi
 trimed1="$Trimfolder/$Sample.1.fq.gz"
 trimed2="$Trimfolder/$Sample.2.fq.gz"
-cutadapt -m 15 -O 5 -n 3 -q 20 -b AAGATCGGAAGAGCACACGTCTGAACTCCAGTCAC  -B GATCGTCGGACTGTAGAACTCTGAACGTGTAGA -o $trimed1 -p $trimed2 $file1 $file2
-#BED_PATH=$(dirname $Ref)
+#cutadapt -m 15 -O 5 -n 3 -q 20 -b AAGATCGGAAGAGCACACGTCTGAACTCCAGTCAC  -B GATCGTCGGACTGTAGAACTCTGAACGTGTAGA -o $trimed1 -p $trimed2 $file1 $file2
 
 
 #Mapped to rRNA and tRNA first
@@ -70,76 +69,81 @@ TRNA_FASTQ2=${TRNA_FASTQ1/.1.fq/.2.fq}
 rRNA_FASTQ1=$PREMAP_PATH/rRNA.1.fq
 rRNA_FASTQ2=${rRNA_FASTQ1/.1.fq/.2.fq}
 
-bowtie2 -p 24 -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 --no-mixed --norc --no-discordant -x $BED_PATH/tRNA_rRNA -1 $trimed1 -2 $trimed2 \
-	| samtools view -bS@24 - \
-	> $PREMAP_PATH/tRNA_rRNA.bam
-
-#extract tr/RNA reads
-samtools view -h -F4 $PREMAP_PATH/tRNA_rRNA.bam \
-	| awk '$1~"^@" || $2 == 83 || $2 == 163 || $2 == 99 || $2 == 147' \
-	| awk '$1~"^@" || $3~/gi\||rRNA/' \
-	| samtools view -b \
-	| bamToFastq -fq $rRNA_FASTQ1 -fq2 $rRNA_FASTQ2 -i - 
-
-samtools view -h -F4 $PREMAP_PATH/tRNA_rRNA.bam \
-	| awk '$1~"^@" || $2 == 83 || $2 == 163 || $2 == 99 || $2 == 147' \
-	| awk '$1~"^@" || $3!~/gi\||rRNA/' \
-	| samtools view -b \
-	| bamToFastq -fq $TRNA_FASTQ1 -fq2 $TRNA_FASTQ2 -i -
-
-#extract non tRNA/rRNA reads
-samtools view -bf 4 $PREMAP_PATH/tRNA_rRNA.bam \
-	| bamToFastq -fq $PREMAP_FASTQ1 -fq2 $PREMAP_FASTQ2 -i -
-
-#3 Hisat2 mapping, Pass1
-hisat2 -p 24 -k 10 --no-mixed --no-discordant --known-splicesite-infile $Splicesite --novel-splicesite-outfile "$Samplefolder/Hisat/novelsite.txt" -x $Ref -1 $PREMAP_FASTQ1 -2 $PREMAP_FASTQ2 \
-	| samtools view -bS - > "$Samplefolder/Hisat/hisat.bam"
-
-#4 Process Tophat output
-cd "$Samplefolder/Hisat/"
-samtools view -H hisat.bam > header.sam
-# remove non-human and non-concordant reads
-#samtools view -F4 hisat.bam |grep -w "NH:i:1" | awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
-#((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' > uniq.sam
-#samtools view -F4 hisat.bam |grep -v -w "NH:i:1" | awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
-#((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' > multi.sam
-split_uniq_bam.py -i hisat.bam -o hisat -a hisat2
-
-#5 Preparing reads for Bowtie2 mapping
-cd "$Samplefolder/Bowtie/"
-samtools view -@ 24 -bf4 "$Samplefolder/Hisat/hisat.bam" \
-	| bamToFastq -i - -fq unmapped.1.fq -fq2 unmapped.2.fq
-gzip -f unmapped.1.fq
-gzip -f unmapped.2.fq
-echo 'Finished HISAT2: ' $Sample
-
-#6 Bowtie2 mapping (Pass2)
-bowtie2 --local -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 -p 24 -k 10 \
-	--no-mixed --no-discordant -x $Bowtie -1 unmapped.1.fq.gz -2 unmapped.2.fq.gz \
-| samtools view -bS - > bowtie2.bam
-
-#7 Process Bowtie2 output
-samtools view -bf4 -@ 24 bowtie2.bam > unmapped.bam
-# remove non-human and non-concordant reads, and those with more than 10 bases being soft-clipped in either end from either read
-#samtools view -F4 -q255 bowtie2.bam |awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
-#((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' > uniq.sam
-#samtools view -F4 bowtie2.bam |awk '{if ($5<255) print }' | awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
-#((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' > multi.sam
-split_uniq_bam.py -i bowtie2.bam -o bowtie -a bowtie2
-echo 'Finished BOWTIE2: ' $Sample
-
-#8 Combine Pass1 and Pass2, process the protein reads, sense protein reads, and calculate RNAseqmatrix, intersect tRNA reads
+#bowtie2 -p 24 -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 --no-mixed --norc --no-discordant -x $BED_PATH/tRNA_rRNA -1 $trimed1 -2 $trimed2 \
+#	| samtools view -bS@24 - \
+#	> $PREMAP_PATH/tRNA_rRNA.bam
+#
+##extract tr/RNA reads
+#samtools view -h -F4 $PREMAP_PATH/tRNA_rRNA.bam \
+#	| awk '$1~"^@" || $2 == 83 || $2 == 163 || $2 == 99 || $2 == 147' \
+#	| awk '$1~"^@" || $3~/gi\||rRNA/' \
+#	| samtools view -b \
+#	| bamToFastq -fq $rRNA_FASTQ1 -fq2 $rRNA_FASTQ2 -i - 
+#
+#samtools view -h -F4 $PREMAP_PATH/tRNA_rRNA.bam \
+#	| awk '$1~"^@" || $2 == 83 || $2 == 163 || $2 == 99 || $2 == 147' \
+#	| awk '$1~"^@" || $3!~/gi\||rRNA/' \
+#	| samtools view -b \
+#	| bamToFastq -fq $TRNA_FASTQ1 -fq2 $TRNA_FASTQ2 -i -
+#
+##extract non tRNA/rRNA reads
+#samtools view -bf 4 $PREMAP_PATH/tRNA_rRNA.bam \
+#	| bamToFastq -fq $PREMAP_FASTQ1 -fq2 $PREMAP_FASTQ2 -i -
+#echo 'Premapped tRNA and rRNA'
+#
+##3 Hisat2 mapping, Pass1
+#hisat2 -p 24 -k 10 --no-mixed --no-discordant \
+#	--known-splicesite-infile $Splicesite \
+#	--novel-splicesite-outfile "$Samplefolder/Hisat/novelsite.txt" \
+#	-x $Ref -1 $PREMAP_FASTQ1 -2 $PREMAP_FASTQ2 \
+#	| samtools view -bS - > "$Samplefolder/Hisat/hisat.bam"
+#
+##4 Process Tophat output
+#cd "$Samplefolder/Hisat/"
+#samtools view -H hisat.bam > header.sam
+## remove non-human and non-concordant reads
+##samtools view -F4 hisat.bam |grep -w "NH:i:1" | awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
+##((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' > uniq.sam
+##samtools view -F4 hisat.bam |grep -v -w "NH:i:1" | awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
+##((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' > multi.sam
+#split_uniq_bam.py -i hisat.bam -o hisat -a hisat2
+#
+##5 Preparing reads for Bowtie2 mapping
+#cd "$Samplefolder/Bowtie/"
+#samtools view -@ 24 -bf4 "$Samplefolder/Hisat/hisat.bam" \
+#	| bamToFastq -i - -fq unmapped.1.fq -fq2 unmapped.2.fq
+#gzip -f unmapped.1.fq
+#gzip -f unmapped.2.fq
+#echo 'Finished HISAT2: ' $Sample
+#
+##6 Bowtie2 mapping (Pass2)
+#bowtie2 --local -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 -p 24 -k 10 \
+#	--no-mixed --no-discordant -x $Bowtie -1 unmapped.1.fq.gz -2 unmapped.2.fq.gz \
+#| samtools view -bS - > bowtie2.bam
+#
+##7 Process Bowtie2 output
+#samtools view -bf4 -@ 24 bowtie2.bam > unmapped.bam
+## remove non-human and non-concordant reads, and those with more than 10 bases being soft-clipped in either end from either read
+##samtools view -F4 -q255 bowtie2.bam |awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
+##((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' > uniq.sam
+##samtools view -F4 bowtie2.bam |awk '{if ($5<255) print }' | awk '{CIGAR1=$6;L1=$0;chr1=$3;getline;CIGAR2=$6;L2=$0;chr2=$3;if \
+##((CIGAR1!~/^[1-9][0-9]S|[1-9][0-9]S$/) && (CIGAR2!~/^[1-9][0-9]S|[1-9][0-9]S$/)&&(chr1==chr2)) print L1"\n"L2}' > multi.sam
+#split_uniq_bam.py -i bowtie2.bam -o bowtie -a bowtie2
+#echo 'Finished BOWTIE2: ' $Sample
+#
+##8 Combine Pass1 and Pass2, process the protein reads, sense protein reads, and calculate RNAseqmatrix, intersect tRNA reads
 cd "$Samplefolder/Combined/"
-#cat ../Hisat/header.sam ../Hisat/multi.sam ../Bowtie/multi.sam | samtools view -b > multi.bam
-samtools cat ../Hisat/hisat.multi.bam ../Bowtie/bowtie.multi.bam  > multi.bam
-reduce_multi_reads.py  \
-	--infile multi.bam \
-	--outfile multi_filtered.bam \
-	--bam_in --bam_out
-samtools cat multi_filtered.bam  ../Hisat/hisat.uniq.bam ../Bowtie/bowtie.uniq.bam - \
-	| samtools sort -n -@ 24 -O bam -T temp \
-	> primary.bam
-echo "Finished correcting multimple mapped reads: " $Sample
+##cat ../Hisat/header.sam ../Hisat/multi.sam ../Bowtie/multi.sam | samtools view -b > multi.bam
+#samtools cat ../Hisat/hisat.multi.bam ../Bowtie/bowtie.multi.bam  > multi.bam
+#reduce_multi_reads.py  \
+#	--infile multi.bam \
+#	--outfile multi_filtered.bam \
+#	--bam_in --bam_out
+#
+#samtools cat multi_filtered.bam  ../Hisat/hisat.unique.bam ../Bowtie/bowtie.unique.bam  \
+#	| samtools sort -n -@ 24 -O bam -T temp \
+#	> primary.bam
+#echo "Finished correcting multimple mapped reads: " $Sample
 
 bedtools pairtobed -s -f 0.01 -abam primary.bam -b $BED_PATH/tRNA.bed > ../tRNA/tRNA_primary.bam
 bedtools pairtobed -s -f 0.01 -abam primary.bam -b $BED_PATH/rRNA_for_bam_filter.bed > ../rRNA/rRNA_primary.bam
@@ -253,9 +257,9 @@ echo 'Finished counting all gene:' $Sample
 
 
 cd "$Samplefolder/Hisat/"
-rm *.sam
+#rm *.sam
 cd "$Samplefolder/Bowtie/"
-rm *.sam
+#rm *.sam
 cd "$Samplefolder/Combined/"
 #rm *.sam
 #picard CollectRnaSeqMetrics REF_FLAT=$REF/GRCh38/hg38_rDNA/hg38.refflat STRAND_SPECIFICITY=NONE MINIMUM_LENGTH=20 INPUT=protein.sense.bam OUTPUT=RnaSeq.Metrics REFERENCE_SEQUENCE="$Bowtie.fa" ASSUME_SORTED=false
