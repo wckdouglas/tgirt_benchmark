@@ -8,6 +8,7 @@ library(dplyr)
 library(tidyr)
 library(cowplot)
 library(purrr)
+library(viridis)
 
 taqman <- '/stor/work/Lambowitz/cdw2854/bench_marking/maqc/taqman_fc_table.feather' %>%
     read_feather() %>%
@@ -68,20 +69,19 @@ gene_roc_p <- ggplot(data=roc_plot_df, aes(x = fpr, y = tpr, color = map_type)) 
 
 rmsd_df <- df %>%
     dplyr::select(map_type, log2FoldChange, taqman_fc) %>%
-    mutate(sq_error = (log2FoldChange - taqman_fc)^2) %>%
-    group_by(map_type) %>%
-    summarize(rmse = sqrt(mean(sq_error, na.rm=T))) %>%
+#    mutate(sq_error = sqrt((log2FoldChange - taqman_fc)^2)) %>%
+    mutate(sq_error = log2FoldChange - taqman_fc) %>%
     ungroup() 
 
-rmse_bar <- ggplot(data=rmsd_df, aes(x = map_type, y = rmse, fill=map_type)) +
-    geom_bar(stat='identity') +
-    labs(x = ' ', y = 'RMSE (RNA-seq vs TaqMan)') +
+rmse_bar <- ggplot(data=rmsd_df, aes(x = map_type, y = sq_error, fill = map_type)) +
+    geom_violin() +
+    labs(x = ' ', y = 'Deviation in fold change\n(TGIRT-seq - TaqMan)') +
     theme(legend.position = 'none') +
-    theme(axis.text.x = element_blank())
+    theme(axis.text.x = element_blank())  
 
 p <- plot_grid(rmse_bar, gene_roc_p, labels = letters[1:2])
 figurepath <- str_c(project_path, '/figures')
-figurename <- str_c(figurepath, '/taqman_roc.png')
-save_plot(p, file=figurename,  base_width=12, base_height=8) 
+figurename <- str_c(figurepath, '/taqman_roc.pdf')
+save_plot(p, file=figurename,  base_width=12, base_height=7) 
 message('Written: ', figurename)
     

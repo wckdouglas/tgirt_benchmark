@@ -74,8 +74,9 @@ tximport(salmon_files_df$filename,
         type = "salmon", 
         tx2gene = tx2gene, 
         reader = read_tsv,
-        countsFromAbundance='lengthScaledTPM') %>%
-    .$counts %>%
+        countsFromAbundance='no')%>%#='lengthScaledTPM') %>%
+#    .$counts %>%
+    .$abundance %>%
     data.frame() %>%
     set_names(salmon_files_df$samplename) %>%
     rownames_to_column('id') %>%

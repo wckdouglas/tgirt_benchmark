@@ -130,4 +130,4 @@ python calibrate_gene_set.py $TRANSCRIPTOME
 cat  $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/rRNA.fa \
 	> $TRANSCRIPTOME/tRNA_rRNA.fa
 bowtie2-build $TRANSCRIPTOME/tRNA_rRNA.fa $TRANSCRIPTOME/tRNA_rRNA
-
+bash make_length.sh
