@@ -152,6 +152,8 @@ type_p <- ggplot() +
                aes(shape = labeling, color = type, x=logFC_AB, y =logFC_CD, alpha=labeling))  + 
     geom_text(x = -7, y =2, data = rmse_fc, 
               aes(label = paste0('R^2: ',as.character(rs))), parse=T) +
+    geom_text(x = -7, y =1.7, data = rmse_fc, 
+              aes(label = paste0('(n =: ',as.character(samplesize),')'))) +
     labs(x = 'log(fold change AB)', y = 'log(fold change CD)', color = ' ', shape = ' ') +
 #    facet_grid(.~analytic_type+map_type) +
     facet_grid(.~map_type) +

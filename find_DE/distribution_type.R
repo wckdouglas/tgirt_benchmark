@@ -107,9 +107,74 @@ friedman_p <-  plot_df %>%
     summarize(gc = sum(gene_count)) %>% 
     friedman.test(gc~map_type|samplename, data=.) %>%
     .$p.value
-#make color
+
+friedman_per_type_p <- plot_df %>%
+    group_by(type) %>%
+    nest() %>%
+    mutate(friedman = map(data, ~friedman.test(gene_count~map_type|samplename, data=.))) %>%
+    mutate(p = map_dbl(friedman, function(x) x$p.value)) %>%
+    unnest(p)
+
+#per type p value
+all_comparison <- gtools::permutations(n=4,r=2,
+                                      v=unique(plot_df$map_type),
+                                      repeats.allowed=F)
+get_all_p <-function(x1, x2, all_comparison, plot_df){
+    compare <- str_c(x1,x2,sep='|')
+
+    wilcox_p <- plot_df %>%
+        filter(grepl(compare,map_type)) %>%
+        group_by(map_type, samplename) %>%
+        summarize(gc = sum(gene_count)) %>% 
+        wilcox.test(gc~map_type, data=., paired=T) %>%
+        .$p.value
+    return(data.frame(wilcox_p, compare))
+}
+pval_df <- all_comparison %>%
+    data.frame() %>%
+    mutate(wilcox_p = map2(X1, X2, get_all_p, all_comparison, plot_df)) %>%
+    unnest(wilcox_p) %>%
+    tbl_df
+
+#per type p value
+all_comparison = gtools::permutations(n=4,r=2,
+                                      v=unique(plot_df$map_type),
+                                      repeats.allowed=F)
+get_p <-function(i, all_comparison, plot_df){
+    compare <- str_c(all_comparison[i,1],all_comparison[i,2],sep='|')
+
+    wilcox_per_type_p <- plot_df %>%
+        filter(grepl(compare,map_type)) %>%
+        arrange(samplename) %>%
+        group_by(type) %>%
+        nest() %>%
+        mutate(wilcox = map(data, ~wilcox.test(gene_count~map_type, data=., paired=T))) %>%
+        mutate(p = map_dbl(wilcox, function(x) x$p.value)) %>%
+        unnest(p) %>%
+        mutate(comparison = compare) %>%
+        select(-wilcox, - data)
+    return(wilcox_per_type_p)
+}
+pval_df <- map_df(1:nrow(all_comparison), get_p, all_comparison, plot_df) %>%
+    mutate(comparison = str_replace(comparison,'\\|', ' vs ')) %>%
+    filter(!is.na(p))
 colors <- RColorBrewer::brewer.pal(12,'Paired')
 colors <- c(colors,'darkgrey')
+pv_p <- ggplot(pval_df, aes(x=comparison, y = -log10(p), color = type)) + 
+    geom_jitter() +
+    geom_hline(yintercept = -log10(0.05), color='red') +
+    labs(x = ' ', y = '-log10(Wilcox test p-value)', color = ' ')  +
+    facet_wrap(~comparison, scale='free_x') +
+    theme(axis.ticks.x = element_blank()) +
+    theme(axis.text.x = element_blank()) +
+    scale_color_manual(values = colors) +
+    panel_border()
+figurename <- file.path(figurepath, 'count_pvalue_plot.pdf')
+ggsave(pv_p, file=figurename)
+message('Plotted: ', figurename)
+
+
+#make color
 gene_count_p <- ggplot(data = plot_df,
         aes(x = samplename, y = gene_count, fill = type)) +
     geom_bar(stat='identity') +
@@ -243,7 +308,7 @@ expression_cor_line_plot <- ggplot(group_expression_df,
                         aes(x=pct_group, y= cor_value, linetype=samplename,
                             color = comparison, group=interaction(comparison,samplename))) + 
     geom_line() + 
-    labs(x = 'Expression level (top %)',y="Pearson's correlation", 
+    labs(x = 'Expression level (top %)',y="Pearson's correlation of\nestimated expression level", 
          color = ' ', linetype=' ') +
     scale_color_manual(values = RColorBrewer::brewer.pal(6,'Dark2'))
 figurename <- str_c(figurepath, '/cor_expressino_line_plot.pdf')
@@ -278,7 +343,7 @@ length_cor_line_plot <- ggplot(gene_length_cor,
                         aes(x=gene_length_group, y= cor_value, linetype=samplename,
                             color = comparison, group=interaction(comparison,samplename))) + 
     geom_line() + 
-    labs(x = 'Gene length (short to long %)',y="Pearson's correlation", 
+    labs(x = 'Gene length (short to long %)',y="Pearson's correlation of\nestimated expression level", 
          color = ' ', linetype=' ') +
     scale_color_manual(values = RColorBrewer::brewer.pal(6,'Dark2'))
 figurename <- str_c(figurepath, '/cor_gene_length_line_plot.pdf')
