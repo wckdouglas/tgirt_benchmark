@@ -26,8 +26,8 @@ def genes_bed():
 
 
 ncRNA = ["sense_intronic","3prime_overlapping_ncRNA",'processed_transcript',
-        'sense_overlapping','Other_lncRNA', 'macro_lncRNA','non_coding',
-        'lincRNA','bidirectional_promoter_lncRNA', 'ribozyme']
+        'sense_overlapping','Other_lncRNA', 'macro_lncRNA','non_coding','known_ncrna',
+        'lincRNA','bidirectional_promoter_lncRNA', 'ribozyme','3prime_overlapping_ncrna']
 smncRNA = ['misc_RNA','snRNA','piRNA','scaRNA','sRNA','scRNA']
 large_rRNA = ['28S_rRNA','18S_rRNA']
 small_rRNA = ['rRNA','5S_rRNA','58S_rRNA','5.8S_rRNA']

@@ -38,6 +38,13 @@ df <- project_path %>%
     inner_join(taqman) %>%
     tbl_df
     
+df <- df %>% 
+    group_by(id) %>% 
+    summarize(occur = n()) %>% 
+    ungroup %>% 
+    filter(occur==8) %>% 
+    inner_join(df) %>%
+    select(-occur)
 
 # 23 non DE in ERCC, 69 DE
 roc_df <- df %>% 
@@ -72,10 +79,11 @@ rmsd_df <- df %>%
 #    mutate(sq_error = sqrt((log2FoldChange - taqman_fc)^2)) %>%
     mutate(sq_error = log2FoldChange - taqman_fc) %>%
     ungroup() 
+pval <- kruskal.test(sq_error~factor(map_type), data=rmsd_df)$p.value
 
-rmse_bar <- ggplot(data=rmsd_df, aes(x = map_type, y = sq_error, fill = map_type)) +
+rmse_bar <- ggplot(data=rmsd_df, aes(x = map_type, y = abs(sq_error), fill = map_type)) +
     geom_violin() +
-    labs(x = ' ', y = 'Deviation in fold change\n(TGIRT-seq - TaqMan)') +
+    labs(x = ' ', y = expression(paste(Delta~'fold change (TGIRT-seq - TaqMan)'))) +
     theme(legend.position = 'none') +
     theme(axis.text.x = element_blank())  
 
@@ -85,3 +93,10 @@ figurename <- str_c(figurepath, '/taqman_roc.pdf')
 save_plot(p, file=figurename,  base_width=12, base_height=7) 
 message('Written: ', figurename)
     
+missing_gene <- df %>% 
+#    filter(comparison == 'AB') %>% 
+    filter(comparison == 'CD') %>% 
+    select(-pvalue, - real_FC, - log2FoldChange) %>% 
+    spread(map_type, taqman_fc) %>% 
+    filter(is.na(Conventional_pipeline))
+

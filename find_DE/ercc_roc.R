@@ -51,6 +51,16 @@ rmse_df <- df %>%
         y_coor = cumsum(.$y_coor)
     )) %>%
     ungroup()
+pval <- rmse_df %>% 
+    mutate(map_type = factor(map_type))%>% 
+    friedman.test(rmse~map_type|group,data=.) %>%
+    .$p.value
+sal_vs_kall <- rmse_df %>% filter(grepl('Ka|Sa',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
+sal_vs_conv <- rmse_df %>% filter(grepl('Conv|Sa',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
+ka_vs_conv <- rmse_df %>% filter(grepl('Conv|Ka',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
+ka_vs_cust <-rmse_df %>% filter(grepl('Cust|Ka',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
+sal_vs_cust <-rmse_df %>% filter(grepl('Cust|Sa',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
+con_vs_cust <-rmse_df %>% filter(grepl('Conv|Cust',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
 
 ercc_de_p<-ggplot()+
     geom_point(data=df, aes(x = log2(av_exp), 
@@ -61,9 +71,9 @@ ercc_de_p<-ggplot()+
     geom_text(data=rmse_df, x= 10,
               aes(label = str_c('RMSE: ',signif(rmse,3)), color = group, y = 3.5 - y_coor * 0.25)) +
     facet_grid(~map_type) +
-    labs(x = 'log2(average expression)', 
-         y = 'log2(Fold change between AB)', 
-         color = ' ') +
+    labs(x = 'Average expression (log2)', 
+         y = 'Fold change between sample AB (log2)', 
+         color = 'ERCC class') +
     scale_color_manual(values = RColorBrewer::brewer.pal(8, "Dark2"))
 
 # 23 non DE in ERCC, 69 DE

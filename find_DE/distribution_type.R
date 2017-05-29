@@ -101,8 +101,15 @@ plot_df <- merge_df %>%
     mutate(samplename = str_replace(samplename, 'Sample_','')) %>%
     mutate(samplename = str_replace(samplename, '_','')) %>%
     mutate(type = forcats::fct_reorder(type, gene_count , sum))
+
+friedman_p <-  plot_df %>% 
+    group_by(map_type, samplename) %>% 
+    summarize(gc = sum(gene_count)) %>% 
+    friedman.test(gc~map_type|samplename, data=.) %>%
+    .$p.value
 #make color
-colors <- RColorBrewer::brewer.pal(13,'Set3')
+colors <- RColorBrewer::brewer.pal(12,'Paired')
+colors <- c(colors,'darkgrey')
 gene_count_p <- ggplot(data = plot_df,
         aes(x = samplename, y = gene_count, fill = type)) +
     geom_bar(stat='identity') +
@@ -154,6 +161,8 @@ message('Plotted: ', figurename)
 
 colors <- RColorBrewer::brewer.pal(n=8,'Dark2')
 colors <- c(colors,'darkblue', 'firebrick4','darkorchid4','darkslategray3')
+#colors <- RColorBrewer::brewer.pal(12,'Paired')
+#colors <- c(colors,'darkgrey')
 samples <- merge_df %>% .$samplename %>% str_replace(.,'_[123]','') %>% unique 
 for (sample_type in samples){
     figurename <- str_c(figurepath, '/pair_type',sample_type,'.png')
@@ -238,7 +247,7 @@ expression_cor_line_plot <- ggplot(group_expression_df,
          color = ' ', linetype=' ') +
     scale_color_manual(values = RColorBrewer::brewer.pal(6,'Dark2'))
 figurename <- str_c(figurepath, '/cor_expressino_line_plot.pdf')
-ggsave(cor_line_plot, file = figurename, width=7, height=7)
+ggsave(expression_cor_line_plot, file = figurename, width=7, height=7)
 message('Plotted: ', figurename)
 
 
@@ -273,7 +282,7 @@ length_cor_line_plot <- ggplot(gene_length_cor,
          color = ' ', linetype=' ') +
     scale_color_manual(values = RColorBrewer::brewer.pal(6,'Dark2'))
 figurename <- str_c(figurepath, '/cor_gene_length_line_plot.pdf')
-ggsave(cor_line_plot, file = figurename, width=7, height=7)
+ggsave(length_cor_line_plot, file = figurename, width=7, height=7)
 message('Plotted: ', figurename)
 
 cor_lines <- plot_grid(length_cor_line_plot, expression_cor_line_plot, 

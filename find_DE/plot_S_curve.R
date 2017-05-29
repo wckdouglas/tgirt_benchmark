@@ -132,11 +132,26 @@ fc_type_df <- gene_file %>%
     distinct() %>% 
     inner_join(fc_df) 
 
+rmse_fc <- fc_type_df %>% 
+    group_by(map_type) %>% 
+    summarize(
+        sum_err = sum(error^2),
+        sum_var = sum((logFC_CD - mean(logFC_CD))^2),
+        samplesize=n()
+    ) %>%
+    mutate(rs =  1 - sum_err/sum_var) %>%
+    mutate(rs = signif(rs, 3)) %>%
+    tbl_df
+
 
 colors_type <- RColorBrewer::brewer.pal(12,'Paired')
+colors_type <- c(colors_type, 'darkgrey')
 type_p <- ggplot() + 
-    geom_point(data = fc_type_df %>% arrange(baseMean_AB), 
+    geom_point(data = fc_type_df %>% 
+                    arrange(baseMean_AB),
                aes(shape = labeling, color = type, x=logFC_AB, y =logFC_CD, alpha=labeling))  + 
+    geom_text(x = -7, y =2, data = rmse_fc, 
+              aes(label = paste0('R^2: ',as.character(rs))), parse=T) +
     labs(x = 'log(fold change AB)', y = 'log(fold change CD)', color = ' ', shape = ' ') +
 #    facet_grid(.~analytic_type+map_type) +
     facet_grid(.~map_type) +
@@ -184,10 +199,10 @@ rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)),
     theme(legend.position = c(0.9,0.2)) +
     ylim(0,0.8)
 
-p <- plot_grid(s_p,rmse_type_p,ncol=1,align='v',
+p <- plot_grid(type_p,rmse_type_p,ncol=1,align='v',
                labels = letters[1:2])
 
-p2 <- plot_grid(type_p,
+p2 <- plot_grid(s_p,
                 s_p +
                     ggrepel::geom_label_repel(data = fc_df %>% 
                                   filter(labeling %in% c('Top 1%','Top 10%')) %>% 

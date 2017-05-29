@@ -57,7 +57,7 @@ ercc_lm <- ggplot(data = lm_df, aes(x = log2(conc), y = log2(abundance), color =
     facet_grid(group~map_type)+
     panel_border() +
     scale_color_manual(values = RColorBrewer::brewer.pal(8, "Dark2")) +
-    labs(x = 'log2(concentration (amol/ul))', y = 'log2(abundance (TPM or read counts)') +
+    labs(x = 'Concentration [log2(amol/ul)]', y = 'TPM (log2)') +
     theme(legend.position = 'none') 
 
 r2_df <- lm_df %>%
@@ -70,6 +70,10 @@ r2_df <- lm_df %>%
     mutate(r2 = map(model, broom::glance)) %>%
     unnest(r2) %>% 
     tbl_df
+pval <- r2_df %>% 
+    mutate(map_type = factor(map_type)) %>% 
+    kruskal.test(r.squared~map_type, data=.) %>%
+    .$p.value
 
 ercc_r2 <- ggplot(data=r2_df, aes(x = map_type, color=map_type, y = r.squared, shape=group)) +
     geom_jitter(size=3, width = 0.1) +
