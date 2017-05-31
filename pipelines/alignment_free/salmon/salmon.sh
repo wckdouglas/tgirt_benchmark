@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATAPATH=${SCRATCH}/bench_marking/data
+DATAPATH=${SCRATCH}/bench_marking/genome_mapping/Trim
 INDEX_PATH=${REF}/benchmarking/human_transcriptome
 INDEX=${INDEX_PATH}/transcript_salmon
 RESULTPATH=${SCRATCH}/bench_marking/alignment_free/salmon
@@ -9,10 +9,10 @@ BAM_PATH=${RESULTPATH}/bamFiles
 THREADS=24
 mkdir -p ${COUNT_PATH} ${BAM_PATH}
 
-for R1 in ${DATAPATH}/*R1_001.fastq.gz
+for R1 in ${DATAPATH}/*.1.fq.gz
 do
 	R2=${R1/R1/R2}
-	SAMPLENAME=$(basename ${R1%_R1_001.fastq.gz})
+	SAMPLENAME=$(basename ${R1%.1.fq.gz})
 	echo time salmon quant \
 		--seqBias --gcBias \
 		--index $INDEX --libType ISF \
