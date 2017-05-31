@@ -101,8 +101,80 @@ plot_df <- merge_df %>%
     mutate(samplename = str_replace(samplename, 'Sample_','')) %>%
     mutate(samplename = str_replace(samplename, '_','')) %>%
     mutate(type = forcats::fct_reorder(type, gene_count , sum))
+
+friedman_p <-  plot_df %>% 
+    group_by(map_type, samplename) %>% 
+    summarize(gc = sum(gene_count)) %>% 
+    friedman.test(gc~map_type|samplename, data=.) %>%
+    .$p.value
+
+friedman_per_type_p <- plot_df %>%
+    group_by(type) %>%
+    nest() %>%
+    mutate(friedman = map(data, ~friedman.test(gene_count~map_type|samplename, data=.))) %>%
+    mutate(p = map_dbl(friedman, function(x) x$p.value)) %>%
+    unnest(p)
+
+#per type p value
+all_comparison <- gtools::permutations(n=4,r=2,
+                                      v=unique(plot_df$map_type),
+                                      repeats.allowed=F)
+get_all_p <-function(x1, x2, all_comparison, plot_df){
+    compare <- str_c(x1,x2,sep='|')
+
+    wilcox_p <- plot_df %>%
+        filter(grepl(compare,map_type)) %>%
+        group_by(map_type, samplename) %>%
+        summarize(gc = sum(gene_count)) %>% 
+        wilcox.test(gc~map_type, data=., paired=T) %>%
+        .$p.value
+    return(data.frame(wilcox_p, compare))
+}
+pval_df <- all_comparison %>%
+    data.frame() %>%
+    mutate(wilcox_p = map2(X1, X2, get_all_p, all_comparison, plot_df)) %>%
+    unnest(wilcox_p) %>%
+    tbl_df
+
+#per type p value
+all_comparison = gtools::permutations(n=4,r=2,
+                                      v=unique(plot_df$map_type),
+                                      repeats.allowed=F)
+get_p <-function(i, all_comparison, plot_df){
+    compare <- str_c(all_comparison[i,1],all_comparison[i,2],sep='|')
+
+    wilcox_per_type_p <- plot_df %>%
+        filter(grepl(compare,map_type)) %>%
+        arrange(samplename) %>%
+        group_by(type) %>%
+        nest() %>%
+        mutate(wilcox = map(data, ~wilcox.test(gene_count~map_type, data=., paired=T))) %>%
+        mutate(p = map_dbl(wilcox, function(x) x$p.value)) %>%
+        unnest(p) %>%
+        mutate(comparison = compare) %>%
+        select(-wilcox, - data)
+    return(wilcox_per_type_p)
+}
+pval_df <- map_df(1:nrow(all_comparison), get_p, all_comparison, plot_df) %>%
+    mutate(comparison = str_replace(comparison,'\\|', ' vs ')) %>%
+    filter(!is.na(p))
+colors <- RColorBrewer::brewer.pal(12,'Paired')
+colors <- c(colors,'darkgrey')
+pv_p <- ggplot(pval_df, aes(x=comparison, y = -log10(p), color = type)) + 
+    geom_jitter() +
+    geom_hline(yintercept = -log10(0.05), color='red') +
+    labs(x = ' ', y = '-log10(Wilcox test p-value)', color = ' ')  +
+    facet_wrap(~comparison, scale='free_x') +
+    theme(axis.ticks.x = element_blank()) +
+    theme(axis.text.x = element_blank()) +
+    scale_color_manual(values = colors) +
+    panel_border()
+figurename <- file.path(figurepath, 'count_pvalue_plot.pdf')
+ggsave(pv_p, file=figurename)
+message('Plotted: ', figurename)
+
+
 #make color
-colors <- RColorBrewer::brewer.pal(13,'Set3')
 gene_count_p <- ggplot(data = plot_df,
         aes(x = samplename, y = gene_count, fill = type)) +
     geom_bar(stat='identity') +
@@ -142,8 +214,8 @@ dist_p <-ggplot(data = df, aes(x=x_name, y = percentage_count, fill=type)) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5)) +
     scale_fill_manual(values = colors)
 
-p<-plot_grid(gene_count_p, ercc_lm, ercc_r2, align='v',
-             labels=letters[1:3], ncol=1)
+p<-plot_grid(gene_count_p, ercc_lm, ercc_r2, 
+             labels=letters[1:3], ncol=1, label_size=20)
 figurepath <- '/stor/work/Lambowitz/cdw2854/bench_marking/figures'
 figurename <- file.path(figurepath , 'exploring_genes.pdf')
 ggsave(p, file=figurename, width = 10,height=12)
@@ -154,6 +226,8 @@ message('Plotted: ', figurename)
 
 colors <- RColorBrewer::brewer.pal(n=8,'Dark2')
 colors <- c(colors,'darkblue', 'firebrick4','darkorchid4','darkslategray3')
+#colors <- RColorBrewer::brewer.pal(12,'Paired')
+#colors <- c(colors,'darkgrey')
 samples <- merge_df %>% .$samplename %>% str_replace(.,'_[123]','') %>% unique 
 for (sample_type in samples){
     figurename <- str_c(figurepath, '/pair_type',sample_type,'.png')
@@ -206,6 +280,8 @@ spreaded_df <-merge_df %>%
     drop_na() %>%
     tbl_df
 
+spreaded_df %>% write_feather('/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes/tpm_table.feather')
+
 group_expression_df <- spreaded_df %>%
     group_by(samplename) %>%
     mutate(pc_x = ntile(mean_abundance, 4)) %>%
@@ -234,11 +310,11 @@ expression_cor_line_plot <- ggplot(group_expression_df,
                         aes(x=pct_group, y= cor_value, linetype=samplename,
                             color = comparison, group=interaction(comparison,samplename))) + 
     geom_line() + 
-    labs(x = 'Expression level (top %)',y="Pearson's correlation", 
+    labs(x = 'Expression level (top %)',y="Pearson's correlation of\nestimated expression level", 
          color = ' ', linetype=' ') +
     scale_color_manual(values = RColorBrewer::brewer.pal(6,'Dark2'))
 figurename <- str_c(figurepath, '/cor_expressino_line_plot.pdf')
-ggsave(cor_line_plot, file = figurename, width=7, height=7)
+ggsave(expression_cor_line_plot, file = figurename, width=7, height=7)
 message('Plotted: ', figurename)
 
 
@@ -269,15 +345,15 @@ length_cor_line_plot <- ggplot(gene_length_cor,
                         aes(x=gene_length_group, y= cor_value, linetype=samplename,
                             color = comparison, group=interaction(comparison,samplename))) + 
     geom_line() + 
-    labs(x = 'Gene length (short to long %)',y="Pearson's correlation", 
+    labs(x = 'Gene length (short to long %)',y="Pearson's correlation of\nestimated expression level", 
          color = ' ', linetype=' ') +
     scale_color_manual(values = RColorBrewer::brewer.pal(6,'Dark2'))
 figurename <- str_c(figurepath, '/cor_gene_length_line_plot.pdf')
-ggsave(cor_line_plot, file = figurename, width=7, height=7)
+ggsave(length_cor_line_plot, file = figurename, width=7, height=7)
 message('Plotted: ', figurename)
 
 cor_lines <- plot_grid(length_cor_line_plot, expression_cor_line_plot, 
-          ncol=1, labels = letters[1:2]) 
+          ncol=1, labels = letters[1:2], label_size=20) 
 figurename <- str_c(figurepath, '/cor_line_plots.pdf')
 ggsave(cor_lines, file = figurename, width=7, height=10)
 message('Plotted: ', figurename)
@@ -376,4 +452,38 @@ venn_Df<-venn_Df %>%
     ungroup()
 
 ps <- lapply(venn_Df$samplename%>%unique,plot_venn, venn_Df)
+
+gene_count_df <- merge_df %>% 
+    filter(abundance > 0.1) %>%
+    group_by(map_type, samplename) %>%
+    summarize(gene_count = n()) 
+
+fm_count <- gene_count_df %>% friedman.test(gene_count~map_type|samplename,data=.)
+
+get_all_p <-function(compare, gene_count_df){
+
+    wilcox_p <- gene_count_df  %>%
+        filter(grepl(compare,map_type)) %>%
+        arrange(samplename) %>%
+        wilcox.test(gene_count~map_type, data=., paired=T) %>%
+        .$p.value
+    return(data.frame(wilcox_p, compare))
+}
+
+merge <- function(x,y){
+    comps <- c(as.character(x),as.character(y))
+    comp <- sort(comps)
+    return(str_c(comp, collapse='|') )
+}
+
+pval_df <- all_comparison %>%
+    data.frame() %>%
+    mutate(comparison = map2(X1,X2, merge)) %>%
+    select(comparison) %>%
+    unnest(comparison) %>%
+    distinct() %>%
+    mutate(wilcox_p = map(comparison, get_all_p, gene_count_df)) %>%
+    unnest(wilcox_p) %>%
+    tbl_df
+
 
