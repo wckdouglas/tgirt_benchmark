@@ -12,7 +12,7 @@ def read_sample(sample_folder):
     json_file = open(sample_folder + '/lib_format_counts.json')
     salmon = cjson.decode(json_file.read())
     df = pd.DataFrame({'variable':salmon.keys(),'value':salmon.values() }) \
-            .drop(6) \ 
+            .drop(6) \
             .assign(sample = samplename)
     return df
 
