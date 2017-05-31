@@ -11,7 +11,7 @@ mkdir -p ${COUNT_PATH} ${BAM_PATH}
 
 for R1 in ${DATAPATH}/*.1.fq.gz
 do
-	R2=${R1/R1/R2}
+	R2=${R1/.1./.2.}
 	SAMPLENAME=$(basename ${R1%.1.fq.gz})
 	echo time salmon quant \
 		--seqBias --gcBias \

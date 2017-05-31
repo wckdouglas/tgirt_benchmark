@@ -4,7 +4,7 @@ DATAPATH=${SCRATCH}/bench_marking/genome_mapping/Trim
 INDEX_PATH=${REF}/benchmarking/human_transcriptome
 INDEX=${INDEX_PATH}/transcriptome_kallisto/transcriptome_kallisto
 RESULTPATH=${SCRATCH}/bench_marking/alignment_free
-COUNT_PATH=${RESULTPATH}/countFiles
+COUNT_PATH=${RESULTPATH}/kallisto
 BAM_PATH=${RESULTPATH}/bamFiles
 THREADS=24
 mkdir -p ${COUNT_PATH} ${BAM_PATH}
