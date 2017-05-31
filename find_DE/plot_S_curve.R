@@ -28,7 +28,7 @@ project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
 df <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern = '.feather', full.names=T) %>%
-    .[!grepl('abundance',.)] %>%
+    .[!grepl('abundance|tpm',.)] %>%
     map_df(read_feather)
     
     
@@ -107,7 +107,7 @@ colors <- c('gray','salmon','light blue', 'goldenrod1')
 s_p <- ggplot() + 
     geom_point(data = fc_df %>% arrange(baseMean_AB),# %>% filter(grepl('^TR|tR|[ACTG]{3}$',id)), 
                aes(color = labeling,x=logFC_AB, y = logFC_CD, alpha=labeling))  + 
-    labs(x = 'log(fold change AB)', y = 'log(fold change CD)', color = ' ') +
+    labs(x = 'Fold change AB (log2)', y = 'Fold change CD (log2)', color = ' ') +
 #    facet_grid(.~analytic_type+map_type) +
     facet_grid(.~map_type) +
     xlim(-10,10) +
@@ -153,8 +153,8 @@ type_p <- ggplot() +
     geom_text(x = -7, y =2, data = rmse_fc, 
               aes(label = paste0('R^2: ',as.character(rs))), parse=T) +
     geom_text(x = -7, y =1.7, data = rmse_fc, 
-              aes(label = paste0('(n =: ',as.character(samplesize),')'))) +
-    labs(x = 'log(fold change AB)', y = 'log(fold change CD)', color = ' ', shape = ' ') +
+              aes(label = paste0('(n=',as.character(samplesize),')'))) +
+    labs(x = 'Fold change AB (log2)', y = 'Fold change CD (log2)', color = ' ', shape = ' ') +
 #    facet_grid(.~analytic_type+map_type) +
     facet_grid(.~map_type) +
     xlim(-10,10) +
@@ -202,20 +202,26 @@ rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)),
     ylim(0,0.8)
 
 p <- plot_grid(type_p,rmse_type_p,ncol=1,align='v',
-               labels = letters[1:2])
+               labels = letters[1:2], label_size=20)
 
-p2 <- plot_grid(s_p,
-                s_p +
+p2 <- plot_grid(s_p +
                     ggrepel::geom_label_repel(data = fc_df %>% 
                                   filter(labeling %in% c('Top 1%','Top 10%')) %>% 
                                   group_by(labeling, analytic_type, map_type) %>%
                                   top_n(5,error),
                               aes(x=logFC_AB, y = logFC_CD, label = name, color = labeling)),
-               ncol=1,align='v',
-               labels = letters[1:2])
+               ncol=1,align='v')
 figurename <- str_c(figurepath, '/fold_change_all_gene.png')
 save_plot(p , file=figurename,  base_width=14, base_height=14) 
 message('Saved: ', figurename)
 figurename <- str_c(figurepath, '/fold_change_supplementary.png')
-save_plot(p2 , file=figurename,  base_width=14, base_height=14) 
+save_plot(p2 , file=figurename,  base_width=14, base_height=7) 
 message('Saved: ', figurename)
+
+
+fc_type_df %>% 
+    filter(type=='tRNA') %>% 
+    select(id,name, type, map_type, baseMean_AB) %>% 
+    spread(map_type, baseMean_AB) %>% 
+    filter(is.na(Salmon))
+

@@ -214,8 +214,8 @@ dist_p <-ggplot(data = df, aes(x=x_name, y = percentage_count, fill=type)) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5)) +
     scale_fill_manual(values = colors)
 
-p<-plot_grid(gene_count_p, ercc_lm, ercc_r2, align='v',
-             labels=letters[1:3], ncol=1)
+p<-plot_grid(gene_count_p, ercc_lm, ercc_r2, 
+             labels=letters[1:3], ncol=1, label_size=20)
 figurepath <- '/stor/work/Lambowitz/cdw2854/bench_marking/figures'
 figurename <- file.path(figurepath , 'exploring_genes.pdf')
 ggsave(p, file=figurename, width = 10,height=12)
@@ -279,6 +279,8 @@ spreaded_df <-merge_df %>%
     spread(map_type, abundance, drop=T) %>% 
     drop_na() %>%
     tbl_df
+
+spreaded_df %>% write_feather('/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes/tpm_table.feather')
 
 group_expression_df <- spreaded_df %>%
     group_by(samplename) %>%
@@ -351,7 +353,7 @@ ggsave(length_cor_line_plot, file = figurename, width=7, height=7)
 message('Plotted: ', figurename)
 
 cor_lines <- plot_grid(length_cor_line_plot, expression_cor_line_plot, 
-          ncol=1, labels = letters[1:2]) 
+          ncol=1, labels = letters[1:2], label_size=20) 
 figurename <- str_c(figurepath, '/cor_line_plots.pdf')
 ggsave(cor_lines, file = figurename, width=7, height=10)
 message('Plotted: ', figurename)
@@ -450,4 +452,38 @@ venn_Df<-venn_Df %>%
     ungroup()
 
 ps <- lapply(venn_Df$samplename%>%unique,plot_venn, venn_Df)
+
+gene_count_df <- merge_df %>% 
+    filter(abundance > 0.1) %>%
+    group_by(map_type, samplename) %>%
+    summarize(gene_count = n()) 
+
+fm_count <- gene_count_df %>% friedman.test(gene_count~map_type|samplename,data=.)
+
+get_all_p <-function(compare, gene_count_df){
+
+    wilcox_p <- gene_count_df  %>%
+        filter(grepl(compare,map_type)) %>%
+        arrange(samplename) %>%
+        wilcox.test(gene_count~map_type, data=., paired=T) %>%
+        .$p.value
+    return(data.frame(wilcox_p, compare))
+}
+
+merge <- function(x,y){
+    comps <- c(as.character(x),as.character(y))
+    comp <- sort(comps)
+    return(str_c(comp, collapse='|') )
+}
+
+pval_df <- all_comparison %>%
+    data.frame() %>%
+    mutate(comparison = map2(X1,X2, merge)) %>%
+    select(comparison) %>%
+    unnest(comparison) %>%
+    distinct() %>%
+    mutate(wilcox_p = map(comparison, get_all_p, gene_count_df)) %>%
+    unnest(wilcox_p) %>%
+    tbl_df
+
 

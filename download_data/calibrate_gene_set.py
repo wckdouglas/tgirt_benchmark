@@ -82,6 +82,10 @@ def rRNA_name(name,type):
         name = name
     return name
   
+def fill_name(name, gene_name):
+    if name == 'nan':
+        name = gene_name
+    return name
 
 t_tab = transcript_table()
 bed = genes_bed()
@@ -90,6 +94,7 @@ df = t_tab.merge(bed, how='outer', on ='gene_id') \
     .assign(t_id = lambda d: d.t_id.fillna('NA')) \
     .assign(type = lambda d: map(mt_tRNA, d.name, d.type))\
     .assign(name = lambda d: map(rRNA_name, d.name, d.type)) \
+    .assign(name = lambda d: map(fill_name, d.name, d.gene_name))\
     .drop(['gene_name','gene_type'], axis=1) 
 union_gene = gene_path + '/all_genes.tsv'
 df.to_csv(union_gene, index=False, sep='\t')

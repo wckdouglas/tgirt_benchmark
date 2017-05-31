@@ -12,6 +12,7 @@ library(purrr)
 # read gene table
 ercc_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/ercc_annotation.tsv' %>%
     read_tsv()  %>%
+    mutate(group = str_c(fold,1,sep=':')) %>%
     tbl_df
 
 # read all tables ====================================================
@@ -19,7 +20,7 @@ project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
 
 df <- file.path(project_path, 'DEgenes') %>%
     list.files(path=., pattern = '.feather', full.names=T) %>%
-    .[!grepl('abundance',.)] %>%
+    .[!grepl('abundance|tpm',.)] %>%
     map_df(read_feather) %>%
     gather(variable, value, -id, -map_type, - comparison) %>%
     filter(grepl('ERCC',id)) %>%
@@ -73,7 +74,7 @@ ercc_de_p<-ggplot()+
     facet_grid(~map_type) +
     labs(x = 'Average expression (log2)', 
          y = 'Fold change between sample AB (log2)', 
-         color = 'ERCC class') +
+         color = 'ERCC\nDE group') +
     scale_color_manual(values = RColorBrewer::brewer.pal(8, "Dark2"))
 
 # 23 non DE in ERCC, 69 DE
@@ -103,7 +104,7 @@ roc_p <- ggplot(data=roc_df %>% arrange(tpr), aes(x = fpr, y = tpr, color = map_
     geom_abline(slope = 1, intercept = 0)
 
 
-p <- plot_grid(ercc_de_p, roc_p, ncol=1, labels = letters[1:2])
+p <- plot_grid(ercc_de_p, roc_p, ncol=1, labels = letters[1:2], label_size=20)
 figurepath <- str_c(project_path, '/figures')
 figurename <- str_c(figurepath, '/ercc_roc.pdf')
 save_plot(p, file=figurename,  base_width=10, base_height=10) 

@@ -43,6 +43,14 @@ df <- project_path %>%
     mutate(sample_id = get_sample_number(samplename)) %>%
     inner_join(ercc_file)
 
+df %>% 
+    mutate(samplename = str_replace(samplename,'_[123]','')) %>%
+    group_by(map_type, id, samplename) %>% 
+    summarize(abundance=mean(abundance)) %>% 
+    ungroup %>% 
+    filter(abundance>0)%>% 
+    group_by(samplename, map_type) %>% 
+    summarize(number_og_genes=n())
 
 lm_df <- df %>%
     filter(group %in% c('A','B')) %>%
