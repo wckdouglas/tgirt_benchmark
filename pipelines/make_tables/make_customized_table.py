@@ -6,6 +6,18 @@ import glob
 import os
 import re
 
+def trim():
+    seqfile = '/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/Trim/sequence_count.tsv'
+    df = pd.read_table(seqfile, sep=':', names=['samplename','trim_count']) \
+        .assign(samplename = lambda d: d.samplename.str.replace('.1.fq.gz',''))
+    return df
+
+def raw_read():
+    seq_count = '/stor/scratch/Lambowitz/cdw2854/bench_marking/data/sequence_count.tsv'
+    seq_df = pd.read_table(seq_count, sep=':',names=['samplename','raw count'])\
+            .assign(samplename = lambda d: d.samplename.str.replace('_R1_001.fastq.gz',''))
+    return seq_df
+
 
 def get_number(line):
     return [int(line.split(' ')[0])]
@@ -46,10 +58,22 @@ def read_sample(sample_folder):
             hisat_mapped, hisat_unique_mapped, 
             bowtie_mapped, bowtie_unique_mapped)
 
-project_path = '/stor/work/Lambowitz/cdw2854/bench_marking'
-base_path = project_path + '/genome_mapping'
-samples = glob.glob(base_path + '/Sample-*')
-samples = filter(lambda x: re.search('-[ABCD]-[123]$',x), samples)
-df = pd.DataFrame(map(read_sample,samples), columns = [ 'samplename','premap_trRNA','trimmed_non_trRNA',
+def main():
+    project_path = '/stor/work/Lambowitz/cdw2854/bench_marking'
+    base_path = project_path + '/genome_mapping'
+    samples = glob.glob(base_path + '/Sample-*')
+    samples = filter(lambda x: re.search('-[ABCD]-[123]$',x), samples)
+    df = pd.DataFrame(map(read_sample,samples), columns = [ 'samplename','premap_trRNA','trimmed_non_trRNA',
                                                   'hisat_mapped','hisat_uniq','bowtie_mapped','bowtie_uniq'])
+    df = df.merge(trim()).merge(raw_read()) \
+        .sort_values('samplename')\
+        .pipe(lambda d: d[['samplename','raw count','trim_count','premap_trRNA','trimmed_non_trRNA','hisat_mapped',
+             'hisat_uniq','bowtie_mapped','bowtie_uniq']])
+    df.columns = ['Sample name','Raw pairs','Trimmed pairs','tRNA/rRNA pairs','non tRNA/rRNA pairs','HISAT mapped pairs',
+                  'HISAT uniquely mapped','BOWTIE2 mapped pairs','BOWTIE2 uniquely mapped']
+    tablename = project_path + '/tables/customized_table.csv'
+    df.to_csv(tablename, index=False)
+    print 'Written %s' %tablename
 
+if __name__ == '__main__':
+    main()

@@ -4,7 +4,7 @@ import pandas as pd
 import glob
 import os
 import re
-from make_customized_table import read_flag_stat
+from make_customized_table import read_flag_stat, raw_read
 
 def read_log(logfile):
     tf = []
@@ -32,8 +32,6 @@ def features():
     return df
 
 
-
-
 def read_file(flag_stat_file):
     samplename = os.path.basename(flag_stat_file).replace('.flagstat','')
     fs = read_flag_stat(flag_stat_file)
@@ -49,9 +47,17 @@ samples = glob.glob(flagstat_path + '/*flagstat')
 df = pd.DataFrame(map(read_file, samples), 
                   columns = ['samplename','trimmed','proper mapped'])
 feature_df = features()
-df.merge(feature_df, on='samplename').sort_values('samplename')
-tablename = project_path + '/tables/conventional_table.tsv'
-df.to_csv(tablename, sep='\t', index=False)
+df = df.merge(feature_df, on='samplename') \
+        .merge(raw_read(), on='samplename')\
+        .sort_values('samplename') \
+        .pipe(lambda d: d[['samplename','raw count','trimmed','proper mapped',
+                           'Assigned frag']]) 
+df['Assigned frag'] = df['Assigned frag'].str.split(' ', expand=True)[0]
+df['proper mapped'] = df['proper mapped'] * 2
+df.columns = ['Sample name','Raw pairs','Trimmed pairs','Properly mapped fragments','Feature fragments']
+df.columns = df.columns.str.replace('_',' ')
+tablename = project_path + '/tables/conventional_table.csv'
+df.to_csv(tablename, index=False)
 print 'Written %s' %tablename
 
 

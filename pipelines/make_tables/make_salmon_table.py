@@ -25,9 +25,16 @@ df = pd.concat(map(read_sample, samples), axis=0) \
     .pipe(pd.pivot_table, index='sample', 
           columns = 'variable', values='value', 
           aggfunc=np.sum)  \
-    .reset_index()
+    .reset_index() \
+    .sort_values('sample') 
 
-tablename = project_path + '/tables/salmon_table.tsv'
-df.to_csv(tablename, sep='\t', index=False)
+tablename = project_path + '/tables/salmon_table.csv'
+df.columns = df.columns.str.replace('_',' ')
+df['compatible fragment ratio'] = map(lambda x: '%.3f' %float(x),df['compatible fragment ratio'])
+df.columns = df.columns.str.replace('_','\n')
+df.rename(columns={'sample':'Sample name'}, inplace=True)
+df.columns = df.columns.str.replace('num ','')
+df = df[df.columns[~df.columns.str.contains('consistent|exp')]]
+df.to_csv(tablename, index=False)
 print 'Written %s' %tablename
 
