@@ -345,7 +345,7 @@ length_cor_line_plot <- ggplot(gene_length_cor,
                         aes(x=gene_length_group, y= cor_value, linetype=samplename,
                             color = comparison, group=interaction(comparison,samplename))) + 
     geom_line() + 
-    labs(x = 'Gene length (short to long %)',y="Pearson's correlation of\nestimated expression level", 
+    labs(x = 'Gene length (Long to short %)',y="Pearson's correlation of\nestimated expression level", 
          color = ' ', linetype=' ') +
     scale_color_manual(values = RColorBrewer::brewer.pal(6,'Dark2'))
 figurename <- str_c(figurepath, '/cor_gene_length_line_plot.pdf')

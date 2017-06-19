@@ -1,3 +1,4 @@
+
 #!bin/bash
 
 # Pipeline for PE reads
@@ -78,7 +79,7 @@ rRNA_FASTQ2=${rRNA_FASTQ1/.1.fq/.2.fq}
 #	| awk '$1~"^@" || $2 == 83 || $2 == 163 || $2 == 99 || $2 == 147' \
 #	| awk '$1~"^@" || $3~/gi\||rRNA/' \
 #	| samtools view -b \
-#	| bamToFastq -fq $rRNA_FASTQ1 -fq2 $rRNA_FASTQ2 -i - 
+#	| bamToFastq -fq $rRNA_FASTQ1 -fq2 $rRNA_FASTQ2 -i -
 #
 #samtools view -h -F4 $PREMAP_PATH/tRNA_rRNA.bam \
 #	| awk '$1~"^@" || $2 == 83 || $2 == 163 || $2 == 99 || $2 == 147' \

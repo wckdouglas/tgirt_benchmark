@@ -39,6 +39,7 @@ df <- project_path %>%
     tbl_df
     
 df <- df %>% 
+    filter(!is.na(log2FoldChange)) %>%
     group_by(id) %>% 
     summarize(occur = n()) %>% 
     ungroup %>% 
