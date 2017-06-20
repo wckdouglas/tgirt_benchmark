@@ -24,12 +24,13 @@ def readSample(count_file_path, tRNA_count_path, sample_id):
         .pipe(lambda d: d[['id','count']])
     tRNA_df = read_tRNA(tRNA_count_path + '/' + sample_id + '.tRNA')
     df = pd.concat([df, tRNA_df],axis=0) \
-        .assign(sample_name = sample_id.replace('-','_'))
+        .assign(sample_name = sample_id.replace('-','_')) 
     return df
 
 def main():
     work = os.environ['WORK']
     count_path = work + '/cdw2854/bench_marking/genome_mapping/Counts'
+    count_path = work + '/cdw2854/bench_marking/genome_mapping/tgirt_map/Counts'
     count_file_path = count_path + '/RAW'
     tRNA_count_path = count_path + '/tRNA_RAW'
     count_files = glob.glob(count_file_path + '/*counts')
@@ -38,10 +39,12 @@ def main():
     dfs = Pool(12).map(dfFunc, sample_ids)
     df = pd.concat(dfs, axis=0) \
         .query('sample_name != "try"') \
+        .assign(count = lambda d: d['count'].astype(int)) \
         .pipe(pd.pivot_table,index = ['id'],  
             values = 'count' , columns = ['sample_name']) \
         .reset_index()\
         .fillna(0)
+    df.iloc[:,1:] = df.iloc[:,1:].astype(int)
     tablename = count_file_path + '/combined_gene_count.tsv'
     df.to_csv(tablename, sep='\t', index=False)
     print 'Written %s' %tablename

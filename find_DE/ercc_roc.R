@@ -20,7 +20,7 @@ project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
 
 df <- file.path(project_path, 'DEgenes') %>%
     list.files(path=., pattern = '.feather', full.names=T) %>%
-    .[!grepl('abundance|tpm',.)] %>%
+    .[!grepl('abundance|tpm|_[0-9]+',.)] %>%
     map_df(read_feather) %>%
     gather(variable, value, -id, -map_type, - comparison) %>%
     filter(grepl('ERCC',id)) %>%
@@ -37,6 +37,10 @@ df <- file.path(project_path, 'DEgenes') %>%
     mutate(padj_AB = ifelse(is.na(padj_AB),1,padj_AB)) %>%
     mutate(pvalue_AB = ifelse(is.na(pvalue_AB),1,pvalue_AB)) %>%
     mutate(error = log2FoldChange_AB-log2fold)  %>% 
+    mutate(map_type = case_when(
+                grepl('Conventional',.$map_type) ~ "HISAT2+featureCount",
+                grepl('Customized', .$map_type) ~ "TGIRT-map",
+                TRUE~ .$map_type)) %>%
     tbl_df
 
 rmse_df <- df %>% 
@@ -57,11 +61,11 @@ pval <- rmse_df %>%
     friedman.test(rmse~map_type|group,data=.) %>%
     .$p.value
 sal_vs_kall <- rmse_df %>% filter(grepl('Ka|Sa',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
-sal_vs_conv <- rmse_df %>% filter(grepl('Conv|Sa',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
-ka_vs_conv <- rmse_df %>% filter(grepl('Conv|Ka',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
-ka_vs_cust <-rmse_df %>% filter(grepl('Cust|Ka',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
-sal_vs_cust <-rmse_df %>% filter(grepl('Cust|Sa',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
-con_vs_cust <-rmse_df %>% filter(grepl('Conv|Cust',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
+sal_vs_conv <- rmse_df %>% filter(grepl('HI|Sa',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
+ka_vs_conv <- rmse_df %>% filter(grepl('HI|Ka',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
+ka_vs_cust <-rmse_df %>% filter(grepl('TG|Ka',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
+sal_vs_cust <-rmse_df %>% filter(grepl('TG|Sa',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
+con_vs_cust <-rmse_df %>% filter(grepl('TG|HI',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
 
 ercc_de_p<-ggplot()+
     geom_point(data=df, aes(x = log2(av_exp), 

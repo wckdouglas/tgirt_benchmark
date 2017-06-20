@@ -28,8 +28,15 @@ project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
 df <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern = '.feather', full.names=T) %>%
-    .[!grepl('abundance|tpm',.)] %>%
-    map_df(read_feather)
+    .[!grepl('abundance|tpm|_[0-9]+',.)] %>%
+    map_df(read_feather) %>%
+    mutate(map_type = case_when(
+                grepl('Conventional',.$map_type) ~ "HISAT2+FeatureCounts",
+                grepl('Customized', .$map_type) ~ "TGIRT-map",
+                TRUE~ .$map_type)) %>%
+    tbl_df
+
+ 
     
     
 #z <- 1.43`
@@ -67,7 +74,7 @@ fc_df <- df %>%
     #unnest(data,predict) %>%
     mutate(error = logFC_CD - predict) %>% 
     ungroup() %>%
-    mutate(analytic_type = ifelse(grepl('pipe',map_type),'Genome Mapping','Alignment-free')) %>%
+    mutate(analytic_type = ifelse(grepl('HI|TG',map_type),'Genome Mapping','Alignment-free')) %>%
     inner_join(gene_file %>% 
                    select(id,name,type) %>% 
                    unique,

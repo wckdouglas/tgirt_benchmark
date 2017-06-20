@@ -29,14 +29,19 @@ project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
 df <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern = '.feather', full.names=T) %>%
-    .[!grepl('abundance|tpm',.)] %>%
+    .[!grepl('abundance|tpm|_[0-9]+',.)] %>%
     map_df(read_feather) %>%
     gather(variable, value, -id, -map_type, - comparison) %>%
     filter(grepl('pvalue|log2FoldChange', variable)) %>%
     mutate(comparison = str_replace(comparison,' vs ','')) %>%
     spread(variable, value) %>%
     inner_join(taqman) %>%
+    mutate(map_type = case_when(
+                grepl('Conventional',.$map_type) ~ "HISAT2+FeatureCounts",
+                grepl('Customized', .$map_type) ~ "TGIRT-map",
+                TRUE~ .$map_type)) %>%
     tbl_df
+
     
 df <- df %>% 
     filter(!is.na(log2FoldChange)) %>%
@@ -99,6 +104,6 @@ missing_gene <- df %>%
     filter(comparison == 'CD') %>% 
     select(-pvalue, - real_FC, - log2FoldChange) %>% 
     spread(map_type, taqman_fc) %>% 
-    filter(is.na(Conventional_pipeline))
+    filter(is.na(`HISAT2+featureCount`))
 
 df %>% group_by(comparison, map_type) %>% summarize(n())
