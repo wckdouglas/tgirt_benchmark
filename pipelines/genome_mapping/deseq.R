@@ -72,7 +72,8 @@ read_table_and_DESeq <- function(tablename, map_type){
     return(0)
 }
     
-table_names <- c('/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/Counts/RAW/combined_gene_count.tsv',
+#table_names <- c('/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/Counts/RAW/combined_gene_count.tsv',
+table_names <- c('/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/tgirt_map/Counts/RAW/combined_gene_count.tsv',
                  '/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/Trim/conventional/counts/feature_counts.tsv')
 map_types <- c('Customized_pipeline','Conventional_pipeline')
 result <- map2(table_names, map_types, read_table_and_DESeq)

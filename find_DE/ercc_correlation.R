@@ -35,16 +35,21 @@ project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
 df <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern='abundance', full.names=T) %>%
+    .[!grepl('_[0-9]+',.)] %>%
     map_df(read_feather) %>%
     gather(samplename, abundance, -id, -map_type) %>%
     inner_join(gene_file) %>%
     filter(type=='ERCC') %>%
     mutate(sample_mix = get_mix(samplename)) %>%
     mutate(sample_id = get_sample_number(samplename)) %>%
-    inner_join(ercc_file)
+    inner_join(ercc_file) %>%
+    mutate(map_type = case_when(
+                                grepl('conventional',.$map_type) ~ "HISAT2+FeatureCounts",
+                                grepl('customized', .$map_type) ~ "TGIRT-map",
+                                TRUE~ .$map_type))
 
 df %>% 
-    mutate(samplename = str_replace(samplename,'_[123]','')) %>%
+#    mutate(samplename = str_replace(samplename,'_[123]','')) %>%
     group_by(map_type, id, samplename) %>% 
     summarize(abundance=mean(abundance)) %>% 
     ungroup %>% 

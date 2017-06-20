@@ -28,8 +28,15 @@ project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
 df <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern = '.feather', full.names=T) %>%
-    .[!grepl('abundance|tpm',.)] %>%
-    map_df(read_feather)
+    .[!grepl('abundance|tpm|_[0-9]+',.)] %>%
+    map_df(read_feather) %>%
+    mutate(map_type = case_when(
+                grepl('Conventional',.$map_type) ~ "HISAT2+FeatureCounts",
+                grepl('Customized', .$map_type) ~ "TGIRT-map",
+                TRUE~ .$map_type)) %>%
+    tbl_df
+
+ 
     
     
 #z <- 1.43`
@@ -67,7 +74,7 @@ fc_df <- df %>%
     #unnest(data,predict) %>%
     mutate(error = logFC_CD - predict) %>% 
     ungroup() %>%
-    mutate(analytic_type = ifelse(grepl('pipe',map_type),'Genome Mapping','Alignment-free')) %>%
+    mutate(analytic_type = ifelse(grepl('HI|TG',map_type),'Genome Mapping','Alignment-free')) %>%
     inner_join(gene_file %>% 
                    select(id,name,type) %>% 
                    unique,
@@ -112,11 +119,11 @@ s_p <- ggplot() +
     facet_grid(.~map_type) +
     xlim(-10,10) +
     ylim(-2,2) +
-    geom_text(x = -7, data = rsquare, 
+    geom_text(x = -7, data = rsquare, alpha=1,
               aes(y=2-ypos/5, 
                   label = paste0('R^2: ',as.character(rs)), 
                   color = labeling), parse=T) +
-    geom_text(x = 7, data = rsquare, 
+    geom_text(x = 7, data = rsquare, alpha=1,
               aes(y=0-ypos/5,label = paste0('n = ',samplesize), color = labeling)) +
     geom_line(data = fc_df, aes(x = logFC_AB, y = predict), color ='red') +
     geom_line(data = fc_df, aes(x = logFC_AB, y = upper_error), color ='red') +
@@ -191,7 +198,7 @@ per_type_r2_df <- fc_type_df  %>%
 rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)), 
        aes(x=prep,y=rmse, fill=prep)) + 
     geom_bar(stat='identity') +
-    geom_text(aes(label = samplesize), size=5, vjust=-1,angle= 0)+
+    geom_text(aes(label = str_c(samplesize,'\n(',signif(rmse,3),')')), size=5, hjust=0,vjust=0.5,angle= 90)+
     facet_wrap(~type) +
     labs(color = ' ', fill= ' ', x= ' ', y = 'Root mean square error', parse=T) +
     panel_border()+
@@ -209,10 +216,11 @@ p2 <- plot_grid(s_p +
                                   filter(labeling %in% c('Top 1%','Top 10%')) %>% 
                                   group_by(labeling, analytic_type, map_type) %>%
                                   top_n(5,error),
+                                  alpha=1,
                               aes(x=logFC_AB, y = logFC_CD, label = name, color = labeling)),
                ncol=1,align='v')
 figurename <- str_c(figurepath, '/fold_change_all_gene.png')
-save_plot(p , file=figurename,  base_width=14, base_height=14) 
+save_plot(p , file=figurename,  base_width=14, base_height=16) 
 message('Saved: ', figurename)
 figurename <- str_c(figurepath, '/fold_change_supplementary.png')
 save_plot(p2 , file=figurename,  base_width=14, base_height=7) 

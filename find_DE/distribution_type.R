@@ -4,6 +4,7 @@ library(readr)
 library(dplyr)
 library(cowplot)
 library(stringr)
+library(stringi)
 library(tidyr)
 library(feather)
 library(purrr)
@@ -47,6 +48,7 @@ alignment_free <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern='abundance', full.names=T) %>%
     .[!grepl('genome',.)] %>%
+    .[!grepl('_[0-9]+',.)] %>%
     map_df(read_feather)  %>%
     gather(samplename, abundance, -id, -map_type) %>%
     tbl_df
@@ -77,6 +79,12 @@ genome_df <- map2(files, labels, function(x,y) read_tsv(x) %>%
             abundance = counts_to_tpm(.$abundance, .$gene_length),
             id = .$id
         )
+    ) %>%
+    ungroup() %>%
+    mutate(map_type = case_when(
+                                grepl('conventional',.$map_type) ~ "HISAT2+FeatureCounts",
+                                grepl('customized', .$map_type) ~ "TGIRT-map",
+                                TRUE~ .$map_type)
     ) %>%
     tbl_df
 
@@ -120,10 +128,10 @@ all_comparison <- gtools::permutations(n=4,r=2,
                                       v=unique(plot_df$map_type),
                                       repeats.allowed=F)
 get_all_p <-function(x1, x2, all_comparison, plot_df){
-    compare <- str_c(x1,x2,sep='|')
+    compare <- str_c(x1, x2, sep='|')
 
     wilcox_p <- plot_df %>%
-        filter(grepl(compare,map_type)) %>%
+        filter(map_type == x1 | map_type == x2) %>%
         group_by(map_type, samplename) %>%
         summarize(gc = sum(gene_count)) %>% 
         wilcox.test(gc~map_type, data=., paired=T) %>%
@@ -144,7 +152,7 @@ get_p <-function(i, all_comparison, plot_df){
     compare <- str_c(all_comparison[i,1],all_comparison[i,2],sep='|')
 
     wilcox_per_type_p <- plot_df %>%
-        filter(grepl(compare,map_type)) %>%
+        filter(map_type == all_comparison[i,1] | map_type == all_comparison[i,2]) %>%
         arrange(samplename) %>%
         group_by(type) %>%
         nest() %>%
@@ -244,7 +252,8 @@ for (sample_type in samples){
                    summarize(count=n())
         ) %>%
         mutate(type = str_c(type, ' (n=', count,')')) %>%
-        select(-id, -count)   
+        select(-id, -count)    %>%
+        set_names(make.names(names(.)))
     p <- ggpairs(matrix_df, 
                 columns = names(matrix_df%>%select(-type)),
                 aes(alpha=0.7,color = type)) 
@@ -278,6 +287,7 @@ spreaded_df <-merge_df %>%
     ungroup() %>%
     spread(map_type, abundance, drop=T) %>% 
     drop_na() %>%
+    set_names(make.names(names(.))) %>%
     tbl_df
 
 spreaded_df %>% write_feather('/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes/tpm_table.feather')
@@ -300,6 +310,8 @@ group_expression_df <- spreaded_df %>%
     mutate(comparison = map2(rowname, map_type, 
                              function(x,y) {paste(sort(c(x,y)), collapse=' vs ')})) %>%
     mutate(comparison = unlist(comparison)) %>%
+    mutate(comparison = stri_replace_all_fixed(comparison,'HISAT2.feat','HISAT2+feat')) %>%
+    mutate(comparison = stri_replace_all_fixed(comparison,'TGIRT.map','TGIRT-map')) %>%
     select(-rowname, -map_type) %>%
     distinct() %>%
     ungroup() %>%
@@ -339,13 +351,15 @@ gene_length_cor <- spreaded_df %>%
     ungroup() %>%
     mutate(gene_length_group = sapply(gene_length_group, function(x) quantile_group[5-x])) %>%
     mutate(gene_length_group = factor(gene_length_group, levels = rev(quantile_group))) %>%
+    mutate(comparison = stri_replace_all_fixed(comparison,'HISAT2.feat','HISAT2+feat')) %>%
+    mutate(comparison = stri_replace_all_fixed(comparison,'TGIRT.map','TGIRT-map')) %>%
     tbl_df
 
 length_cor_line_plot <- ggplot(gene_length_cor, 
                         aes(x=gene_length_group, y= cor_value, linetype=samplename,
                             color = comparison, group=interaction(comparison,samplename))) + 
     geom_line() + 
-    labs(x = 'Gene length (short to long %)',y="Pearson's correlation of\nestimated expression level", 
+    labs(x = 'Gene length (Long to short %)',y="Pearson's correlation of\nestimated expression level", 
          color = ' ', linetype=' ') +
     scale_color_manual(values = RColorBrewer::brewer.pal(6,'Dark2'))
 figurename <- str_c(figurepath, '/cor_gene_length_line_plot.pdf')
@@ -355,7 +369,7 @@ message('Plotted: ', figurename)
 cor_lines <- plot_grid(length_cor_line_plot, expression_cor_line_plot, 
           ncol=1, labels = letters[1:2], label_size=20) 
 figurename <- str_c(figurepath, '/cor_line_plots.pdf')
-ggsave(cor_lines, file = figurename, width=7, height=10)
+ggsave(cor_lines, file = figurename, width=8, height=10)
 message('Plotted: ', figurename)
 
 
@@ -372,26 +386,26 @@ plot_venn <- function(which_sample,d){
     figurename <- str_replace_all(figurename,' ','_')
     pdf(figurename, width = 15, height=10)
     venn.plot <- draw.quad.venn(
-                area1 = filter(plot_df, grepl(sample_1,maps))$number_of_genes %>% sum,
-                area2 = filter(plot_df, grepl(sample_2,maps))$number_of_genes %>% sum,
-                area3 = filter(plot_df, grepl(sample_3,maps))$number_of_genes %>% sum,
-                area4 = filter(plot_df, grepl(sample_4,maps))$number_of_genes %>% sum,
+                area1 = filter(plot_df, grepl(sample_1,maps, fixed=T))$number_of_genes %>% sum,
+                area2 = filter(plot_df, grepl(sample_2,maps, fixed=T))$number_of_genes %>% sum,
+                area3 = filter(plot_df, grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
+                area4 = filter(plot_df, grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
 
-                n12 = filter(plot_df, grepl(sample_1,maps), grepl(sample_2,maps))$number_of_genes %>% sum,
-                n13 = filter(plot_df, grepl(sample_1,maps), grepl(sample_3,maps))$number_of_genes %>% sum,
-                n14 = filter(plot_df, grepl(sample_1,maps), grepl(sample_4,maps))$number_of_genes %>% sum,
-                n23 = filter(plot_df, grepl(sample_2,maps), grepl(sample_3,maps))$number_of_genes %>% sum,
-                n24 = filter(plot_df, grepl(sample_2,maps), grepl(sample_4,maps))$number_of_genes %>% sum,
-                n34 = filter(plot_df, grepl(sample_3,maps), grepl(sample_4,maps))$number_of_genes %>% sum,
+                n12 = filter(plot_df, grepl(sample_1,maps, fixed=T), grepl(sample_2,maps, fixed=T))$number_of_genes %>% sum,
+                n13 = filter(plot_df, grepl(sample_1,maps, fixed=T), grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
+                n14 = filter(plot_df, grepl(sample_1,maps, fixed=T), grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
+                n23 = filter(plot_df, grepl(sample_2,maps, fixed=T), grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
+                n24 = filter(plot_df, grepl(sample_2,maps, fixed=T), grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
+                n34 = filter(plot_df, grepl(sample_3,maps, fixed=T), grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
 
-                n123 = filter(plot_df, grepl(sample_1,maps),
-                              grepl(sample_2,maps), grepl(sample_3,maps))$number_of_genes %>% sum,
-                n124 = filter(plot_df, grepl(sample_1,maps),
-                              grepl(sample_2,maps), grepl(sample_4, maps))$number_of_genes %>% sum,
-                n134 = filter(plot_df, grepl(sample_1,maps),
-                              grepl(sample_3,maps), grepl(sample_4, maps))$number_of_genes %>% sum,
-                n234 = filter(plot_df, grepl(sample_2,maps),
-                              grepl(sample_3,maps), grepl(sample_4, maps))$number_of_genes %>% sum,
+                n123 = filter(plot_df, grepl(sample_1,maps, fixed=T),
+                              grepl(sample_2,maps, fixed=T), grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
+                n124 = filter(plot_df, grepl(sample_1,maps, fixed=T),
+                              grepl(sample_2,maps, fixed=T), grepl(sample_4, maps, fixed=T))$number_of_genes %>% sum,
+                n134 = filter(plot_df, grepl(sample_1,maps, fixed=T),
+                              grepl(sample_3,maps, fixed=T), grepl(sample_4, maps, fixed=T))$number_of_genes %>% sum,
+                n234 = filter(plot_df, grepl(sample_2,maps, fixed=T),
+                              grepl(sample_3,maps, fixed=T), grepl(sample_4, maps, fixed=T))$number_of_genes %>% sum,
 
                 n1234 = filter(plot_df, maps == str_c(sample_1, sample_2,
                                                       sample_3, sample_4,sep=','))$number_of_genes %>% sum,
@@ -461,9 +475,10 @@ gene_count_df <- merge_df %>%
 fm_count <- gene_count_df %>% friedman.test(gene_count~map_type|samplename,data=.)
 
 get_all_p <-function(compare, gene_count_df){
-
+    comp1 <- str_split(compare,'\\|')[[1]][1]
+    comp2 <- str_split(compare,'\\|')[[1]][2]
     wilcox_p <- gene_count_df  %>%
-        filter(grepl(compare,map_type)) %>%
+        filter(grepl(comp1,map_type, fixed=T) | grepl(comp2,map_type, fixed=T)) %>%
         arrange(samplename) %>%
         wilcox.test(gene_count~map_type, data=., paired=T) %>%
         .$p.value
