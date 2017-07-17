@@ -49,7 +49,7 @@ df <- project_path %>%
                                 TRUE~ .$map_type))
 
 df %>% 
-#    mutate(samplename = str_replace(samplename,'_[123]','')) %>%
+    mutate(samplename = str_replace(samplename,'_[123]','')) %>%
     group_by(map_type, id, samplename) %>% 
     summarize(abundance=mean(abundance)) %>% 
     ungroup %>% 

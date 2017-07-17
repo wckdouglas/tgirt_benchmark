@@ -208,8 +208,45 @@ rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)),
     theme(legend.position = c(0.9,0.2)) +
     ylim(0,0.8)
 
-p <- plot_grid(type_p,rmse_type_p,ncol=1,align='v',
-               labels = letters[1:2], label_size=20)
+
+tRNA_error <- fc_type_df %>% 
+    filter(type=='tRNA') %>%
+    select(map_type,error, name) %>%
+    mutate(error = abs(error)) %>%
+    group_by(map_type) %>%
+    nest() %>%
+    mutate(data = map(data, function(d) d %>% 
+                          arrange(error) %>% 
+                          mutate(cum_error = cumsum(error)) %>%
+                          mutate(id = 1:nrow(.)))) %>%
+    unnest() %>%
+    ggplot(aes(x=id, y=cum_error, color=map_type)) +
+        geom_line(size=2) +
+        labs(y = 'Cumulative error\n(log2 fold change)',
+             x='Number of tRNA', color = ' ') +
+        scale_x_continuous(breaks=seq(0,56,8), limits=c(1,56)) +
+        theme(legend.position = 'none')
+    
+    
+
+font_size = 20
+p <- plot_grid(type_p + 
+                   theme(axis.text = element_text(size=font_size),
+                         axis.title = element_text(size=font_size),
+                         strip.text = element_text(size=font_size)),
+               rmse_type_p+
+                   theme(axis.text = element_text(size=font_size),
+                         axis.title = element_text(size=font_size),
+                         strip.text = element_text(size=font_size)), 
+               tRNA_error + 
+                   theme(axis.text = element_text(size=font_size),
+                         axis.title = element_text(size=font_size)),
+               ncol=1,align='v',
+               labels = letters[1:3], label_size=30)
+figurename <- str_c(figurepath, '/fold_change_all_gene.png')
+save_plot(p , file=figurename,  base_width=15, base_height=22) 
+message('Saved: ', figurename)
+
 
 p2 <- plot_grid(s_p +
                     ggrepel::geom_label_repel(data = fc_df %>% 
@@ -219,9 +256,7 @@ p2 <- plot_grid(s_p +
                                   alpha=1,
                               aes(x=logFC_AB, y = logFC_CD, label = name, color = labeling)),
                ncol=1,align='v')
-figurename <- str_c(figurepath, '/fold_change_all_gene.png')
-save_plot(p , file=figurename,  base_width=14, base_height=16) 
-message('Saved: ', figurename)
+
 figurename <- str_c(figurepath, '/fold_change_supplementary.png')
 save_plot(p2 , file=figurename,  base_width=14, base_height=7) 
 message('Saved: ', figurename)
@@ -233,3 +268,8 @@ fc_type_df %>%
     spread(map_type, baseMean_AB) %>% 
     filter(is.na(Salmon))
 
+rmse_table <- str_c(figurepath, '/rmse_fc.csv')
+per_type_r2_df %>% 
+    select(rmse,map_type,type,analytic_type) %>%
+    spread(type, rmse) %>%
+    write_csv(rmse_table)

@@ -3,6 +3,10 @@
 PROJECT_PATH=${SCRATCH}/bench_marking
 DATAPATH=${PROJECT_PATH}/data
 RESULT_PATH=${PROJECT_PATH}/genome_mapping/tgirt_map
+
+
+DATAPATH=/stor/work/Lambowitz/Data/NGS/Matt
+RESULT_PATH=$DATAPATH/results
 HUMAN_INDEX=${REF}/benchmarking/GRCH38_genome/reference  # GRCh38 hisat2 index 
 BED_PATH=${REF}/benchmarking/human_transcriptome  #bed file GRCh38
 tRNA_INDEX=${REF}/benchmarking/human_transcriptome/tRNA #tRNA with mtTRNA and cytosolic tRNA

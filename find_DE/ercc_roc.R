@@ -38,7 +38,7 @@ df <- file.path(project_path, 'DEgenes') %>%
     mutate(pvalue_AB = ifelse(is.na(pvalue_AB),1,pvalue_AB)) %>%
     mutate(error = log2FoldChange_AB-log2fold)  %>% 
     mutate(map_type = case_when(
-                grepl('Conventional',.$map_type) ~ "HISAT2+featureCount",
+                grepl('Conventional',.$map_type) ~ "HISAT2+FeatureCounts",
                 grepl('Customized', .$map_type) ~ "TGIRT-map",
                 TRUE~ .$map_type)) %>%
     tbl_df
@@ -113,3 +113,11 @@ figurepath <- str_c(project_path, '/figures')
 figurename <- str_c(figurepath, '/ercc_roc.pdf')
 save_plot(p, file=figurename,  base_width=10, base_height=10) 
 message('Saved: ', figurename)
+
+ercc_roc_table <- str_c(figurepath, '/ercc_roc.csv')
+roc_df %>% 
+    mutate(map_type = str_replace(map_type,' \\(AUC: 0.[0-9]+\\)','')) %>%
+    select(map_type, auc) %>%
+    rename(auc_ercc = auc) %>%
+    distinct() %>%
+    write_csv(ercc_roc_table)

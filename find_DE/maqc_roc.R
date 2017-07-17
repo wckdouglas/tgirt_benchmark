@@ -104,6 +104,14 @@ missing_gene <- df %>%
     filter(comparison == 'CD') %>% 
     select(-pvalue, - real_FC, - log2FoldChange) %>% 
     spread(map_type, taqman_fc) %>% 
-    filter(is.na(`HISAT2+featureCount`))
+    filter(is.na(`HISAT2+FeatureCounts`))
 
 df %>% group_by(comparison, map_type) %>% summarize(n())
+
+maqc_roc_table <- str_c(figurepath, '/maqc_roc.csv')
+roc_plot_df %>% 
+    mutate(map_type = str_replace(map_type,' \\(AUC: 0.[0-9]+\\)','')) %>%
+    select(map_type, auc) %>%
+    rename(auc_maqc = auc) %>%
+    distinct() %>%
+    write_csv(maqc_roc_table)

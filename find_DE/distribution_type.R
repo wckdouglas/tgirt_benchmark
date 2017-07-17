@@ -10,8 +10,9 @@ library(feather)
 library(purrr)
 library(VennDiagram)
 library(GGally)
+library(UpSetR)
 
-
+setwd('~/tgirt_benchmark/find_DE/')
 source('ercc_correlation.R')
 counts_to_tpm <- function(counts, lengths) {
     rate <- counts / lengths
@@ -427,8 +428,8 @@ gg_color_hue <- function(n) {
 venn_Df <- merge_df %>% 
     mutate(samplename = str_replace(samplename,'_[1-3]$','')) %>%
     group_by(samplename, id, name, type, map_type) %>%
-    summarize(abundance = sum(abundance)) %>%
-    filter(abundance > 0)  %>% 
+    summarize(abundance = mean(abundance)) %>%
+    filter(abundance > 0.1)  %>% 
     ungroup() %>%
     group_by(samplename,id,name,type) %>% 
     summarize(
@@ -502,3 +503,41 @@ pval_df <- all_comparison %>%
     tbl_df
 
 
+spreaded_merge <- merge_df %>% 
+    mutate(samplename = str_replace(samplename,'_[1-3]$','')) %>%
+    group_by(samplename, id, name, type, map_type) %>%
+    summarize(abundance = mean(abundance)) %>%
+    filter(abundance > 0.1)  %>% 
+    ungroup() %>%
+    mutate(abundance = 1) %>% 
+    spread(map_type, abundance, fill=0) %>%
+    select(-3,-4) %>%
+    tbl_df
+
+color_i <- 0
+for (sm in spreaded_merge$samplename %>% unique){
+    color_i <- color_i + 1
+    figurename <- str_c(figurepath, '/upset_',sm,'.pdf')
+    pdf(figurename, width=10,height=7,onefile=FALSE)
+    upset(spreaded_merge %>% 
+          filter(samplename==sm) %>% 
+          select(-samplename) %>%
+          data.frame,
+        order.by = "freq",
+        main.bar.color = colors[color_i],
+        decreasing=F,
+        empty.intersections = "on",
+        nsets = 6, number.angles = 30, 
+        point.size = 3.5, line.size = 2,  
+        #c(intersection size title, intersection size tick labels, 
+        #  set size title, set size tick labels, set names, numbers above bars).
+        text.scale=c(1.8, 1.8, 1, 1, 1.3, 1.8),
+        mb.ratio = c(0.7,0.3))
+    dev.off()
+    message('Plotted: ', figurename)
+}
+
+
+
+gene_count_table <- str_c(figurepath, '/gene_count.csv')
+gene_count_df %>% write_csv(gene_count_table)
