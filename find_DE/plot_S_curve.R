@@ -35,8 +35,6 @@ df <- project_path %>%
                 grepl('Customized', .$map_type) ~ "TGIRT-map",
                 TRUE~ .$map_type)) %>%
     tbl_df
-
- 
     
     
 #z <- 1.43`
@@ -92,7 +90,9 @@ fc_df <- fc_df %>%
                         .$baseMean_AB > .$`X99.` ~ 'Top 1%', 
                         .$baseMean_AB > .$`X90.` ~ 'Top 10%',
                         .$baseMean_AB > .$`X75.` ~ 'Top 25%',
-                        .$baseMean_AB <= .$`X75.`~ 'Others'))  %>%
+                        .$baseMean_AB <= .$`X75.`~ 'Bottom 75%'))  %>%
+    mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',map_type),1,2)) %>%
+    mutate(map_type = forcats::fct_reorder(map_type, pipeline_type)) %>%
     tbl_df
 
 rsquare <- fc_df %>%
@@ -110,7 +110,7 @@ rsquare <- fc_df %>%
     mutate(rs = formatC(round(rs,3), format='f',digits=3)) %>%
     tbl_df
 
-colors <- c('gray','salmon','light blue', 'goldenrod1')
+colors <- RColorBrewer::brewer.pal(8, 'Dark2')
 s_p <- ggplot() + 
     geom_point(data = fc_df %>% arrange(baseMean_AB),# %>% filter(grepl('^TR|tR|[ACTG]{3}$',id)), 
                aes(color = labeling,x=logFC_AB, y = logFC_CD, alpha=labeling))  + 
@@ -122,13 +122,13 @@ s_p <- ggplot() +
     geom_text(x = -7, data = rsquare, alpha=1,
               aes(y=2-ypos/5, 
                   label = paste0('R^2: ',as.character(rs)), 
-                  color = labeling), parse=T) +
+                  color = labeling), parse=T, show.legend=F) +
     geom_text(x = 7, data = rsquare, alpha=1,
-              aes(y=0-ypos/5,label = paste0('n = ',samplesize), color = labeling)) +
+              aes(y=-1-ypos/5,label = paste0('n = ',samplesize), color = labeling), show.legend = F) +
     geom_line(data = fc_df, aes(x = logFC_AB, y = predict), color ='red') +
     geom_line(data = fc_df, aes(x = logFC_AB, y = upper_error), color ='red') +
     geom_line(data = fc_df, aes(x = logFC_AB, y = lower_error), color ='red') +
-    scale_color_manual(values = colors) +
+    scale_color_manual(values = colors)+
     scale_alpha_manual(values = c(0.1,1,1,1), guide=F) +
     panel_border()
 message('Plotted S curve')
@@ -137,7 +137,8 @@ message('Plotted S curve')
 fc_type_df <- gene_file %>% 
     select(id,name,type) %>% 
     distinct() %>% 
-    inner_join(fc_df) 
+    inner_join(fc_df)  %>%
+    tbl_df
 
 rmse_fc <- fc_type_df %>% 
     group_by(map_type) %>% 
@@ -194,21 +195,36 @@ per_type_r2_df <- fc_type_df  %>%
             samplesize=n()) %>%
     ungroup() %>%
     mutate(prep = str_c(map_type,sep='\n')) %>%
+    mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',prep),1,2)) %>%
+    mutate(prep = forcats::fct_reorder(prep, pipeline_type)) %>%
     tbl_df
+
+colors <- c("#E69F00", "#F0E442", "#009E73", "#56B4E9")
+error_table <- str_c(figurepath, '/pertype_rmse.csv')
+per_type_r2_df %>% 
+    mutate(value = str_c('\\shortstack{',signif(rmse,3),'\\\\ (',samplesize,')}')) %>%
+    select(type, map_type, value)  %>%
+    spread(map_type, value) %>%
+    mutate(type = str_c('\\textbf{',type,'}')) %>%
+    rename(`RNA type` = type) %>%
+    write_csv(error_table)
+
 rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)), 
        aes(x=prep,y=rmse, fill=prep)) + 
     geom_bar(stat='identity') +
-    geom_text(aes(label = str_c(samplesize,'\n(',signif(rmse,3),')')), size=5, hjust=0,vjust=0.5,angle= 90)+
+    #geom_text(aes(label = str_c(samplesize,'\n(',signif(rmse,3),')')), size=4, hjust=0,vjust=0.5,angle= 90)+
     facet_wrap(~type) +
-    labs(color = ' ', fill= ' ', x= ' ', y = 'Root mean square error', parse=T) +
+    labs(color = ' ', fill= ' ', x= 'Pipeline', y = 'Root mean square error', parse=T) +
     panel_border()+
     theme(axis.text.x=element_blank())+
     theme(axis.ticks.x=element_blank())+
     theme(legend.key.height = unit(2,'line')) +
-    theme(legend.position = c(0.9,0.2)) +
-    ylim(0,0.8)
+    theme(legend.position = c(0.65,0.2)) +
+    ylim(0,0.8) + 
+    scale_fill_manual(values=colors)
 
 
+colors <- c("#E69F00", "#F0E442", "#009E73", "#56B4E9")
 tRNA_error <- fc_type_df %>% 
     filter(type=='tRNA') %>%
     select(map_type,error, name) %>%
@@ -220,45 +236,68 @@ tRNA_error <- fc_type_df %>%
                           mutate(cum_error = cumsum(error)) %>%
                           mutate(id = 1:nrow(.)))) %>%
     unnest() %>%
-    ggplot(aes(x=id, y=cum_error, color=map_type)) +
-        geom_line(size=2) +
+    ggplot(aes(x=id, y=cum_error)) +
+        geom_line(size=2, aes(color=map_type)) +
         labs(y = 'Cumulative error\n(log2 fold change)',
              x='Number of tRNA', color = ' ') +
         scale_x_continuous(breaks=seq(0,56,8), limits=c(1,56)) +
-        theme(legend.position = 'none')
+        theme(legend.position = 'none')+
+        scale_color_manual(values=colors) +
+        draw_text('Alignment-free', 24, 5) +
+        draw_text('Alignment-based', 53, 2)
     
     
 
-font_size = 20
-p <- plot_grid(type_p + 
-                   theme(axis.text = element_text(size=font_size),
-                         axis.title = element_text(size=font_size),
-                         strip.text = element_text(size=font_size)),
-               rmse_type_p+
+font_size = 12
+p <- plot_grid(rmse_type_p+
                    theme(axis.text = element_text(size=font_size),
                          axis.title = element_text(size=font_size),
                          strip.text = element_text(size=font_size)), 
                tRNA_error + 
                    theme(axis.text = element_text(size=font_size),
                          axis.title = element_text(size=font_size)),
-               ncol=1,align='v',
-               labels = letters[1:3], label_size=30)
-figurename <- str_c(figurepath, '/fold_change_all_gene.png')
-save_plot(p , file=figurename,  base_width=15, base_height=22) 
+               ncol=1,align='v', axis='l',
+               labels = letters[1:2], label_size=20,
+               rel_heights=c(1.5,1))
+figurename <- str_c(figurepath, '/fold_change_all_gene.pdf')
+save_plot(p , file=figurename,  base_width=9, base_height=11) 
 message('Saved: ', figurename)
 
 
-p2 <- plot_grid(s_p +
-                    ggrepel::geom_label_repel(data = fc_df %>% 
-                                  filter(labeling %in% c('Top 1%','Top 10%')) %>% 
-                                  group_by(labeling, analytic_type, map_type) %>%
-                                  top_n(5,error),
-                                  alpha=1,
-                              aes(x=logFC_AB, y = logFC_CD, label = name, color = labeling)),
-               ncol=1,align='v')
+#p2 <- plot_grid(type_p + 
+#                   theme(axis.text = element_text(size=font_size),
+#                         axis.title = element_text(size=font_size),
+#                         strip.text = element_text(size=font_size)),
+#                s_p +
+#                    ggrepel::geom_label_repel(data = fc_df %>% 
+#                                  filter(labeling %in% c('Top 1%','Top 10%')) %>% 
+#                                  group_by(labeling, analytic_type, map_type) %>%
+#                                  top_n(5,error),
+#                                  alpha=1,
+#                              aes(x=logFC_AB, y = logFC_CD, label = name, color = labeling),
+#                              show.legend = F),
+#               ncol=1, align='v', axis='l', 
+#               labels=letters[1:2], label_size=30)
 
-figurename <- str_c(figurepath, '/fold_change_supplementary.png')
-save_plot(p2 , file=figurename,  base_width=14, base_height=7) 
+colors <- c("#E69F00", "#F0E442", "#009E73", "#56B4E9")
+p2 <- rsquare %>% 
+    select(map_type, labeling, rs) %>% 
+    rbind(rmse_fc %>% 
+              select(map_type, rs) %>% 
+              mutate(labeling = 'Total RNA')
+          ) %>%
+    mutate(labeling = factor(labeling, levels=c('Total RNA','Top 1%', 'Top 10%', 'Top 25%','Bottom 75%'))) %>%
+    mutate(rs = as.numeric(rs)) %>%
+    ggplot(aes(x=map_type, y=rs, fill=map_type)) +
+        geom_bar(stat='identity') + 
+        facet_grid(~labeling) +
+        scale_fill_manual(values=colors) +
+        labs(x='Pipelines', y = expression(R^2), fill= ' ') +
+        theme(axis.text.x=element_blank()) +
+        ylim(0,1)
+
+figurename <- str_c(figurepath, '/fold_change_supplementary.pdf')
+save_plot(p2 , file=figurename,  base_width=10, base_height=5) 
 message('Saved: ', figurename)
 
 

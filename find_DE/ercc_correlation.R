@@ -46,7 +46,9 @@ df <- project_path %>%
     mutate(map_type = case_when(
                                 grepl('conventional',.$map_type) ~ "HISAT2+FeatureCounts",
                                 grepl('customized', .$map_type) ~ "TGIRT-map",
-                                TRUE~ .$map_type))
+                                TRUE~ .$map_type)) %>%
+    mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',map_type),1,2)) %>%
+    mutate(map_type = forcats::fct_reorder(map_type, pipeline_type))
 
 df %>% 
     mutate(samplename = str_replace(samplename,'_[123]','')) %>%
@@ -63,7 +65,7 @@ lm_df <- df %>%
     tbl_df
 
 formula = y~x
-ercc_lm <- ggplot(data = lm_df, aes(x = log2(conc), y = log2(abundance), color = group)) +
+ercc_lm <- ggplot(data = lm_df, aes(x = log2(conc), y = log2(abundance))) +
     geom_point(alpha=0.6) +
     geom_smooth(method='lm', formula = formula) +
     ggpmisc::stat_poly_eq(formula = formula, parse = TRUE) +
@@ -92,7 +94,8 @@ ercc_r2 <- ggplot(data=r2_df, aes(x = map_type, color=map_type, y = r.squared, s
     geom_jitter(size=3, width = 0.1) +
     labs(x = ' ', y = expression(R^2), parse=T, shape = 'Sample mix', color = 'Pipeline') +
     theme(axis.title.y = element_text(angle=0)) +
-    ylim(0.9,1)
+    ylim(0.9,1) +
+    scale_colour_manual(values=RColorBrewer::brewer.pal(8, "Dark2"))
 
 p <- plot_grid(ercc_lm, ercc_r2, ncol=1, labels = letters[1:2])
 figurepath <- str_c(project_path, '/figures')

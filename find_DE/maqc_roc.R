@@ -71,32 +71,43 @@ roc_plot_df <- roc_df %>%
     unnest(tpr, fpr) %>%
     inner_join(AUC_df) %>%
     mutate(map_type = str_c(map_type, ' (AUC: ',auc,')')) %>%
-    arrange(tpr)
+    arrange(tpr) %>%
+    mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',map_type),1,2)) %>%
+    mutate(map_type = forcats::fct_reorder(map_type, pipeline_type)) 
 
+colors <- c("#E69F00", "#F0E442", "#009E73", "#56B4E9")
 gene_roc_p <- ggplot(data=roc_plot_df, aes(x = fpr, y = tpr, color = map_type)) +
-    geom_line()+
+    geom_line(size=2, alpha=0.8)+
     labs(x = 'False positive rate', y = 'True positive rate', color = ' ') +
-    theme(legend.position = c(0.7,0.25)) +
-    geom_abline(slope = 1, intercept = 0)
+    theme(legend.position = c(0.6,0.25)) +
+    geom_abline(slope = 1, intercept = 0, linetype=2) +
+    scale_color_manual(values=colors)
 
 
 rmsd_df <- df %>%
     dplyr::select(map_type, log2FoldChange, taqman_fc) %>%
 #    mutate(sq_error = sqrt((log2FoldChange - taqman_fc)^2)) %>%
     mutate(sq_error = log2FoldChange - taqman_fc) %>%
-    ungroup() 
+    ungroup()  %>%
+    mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',map_type),1,2)) %>%
+    mutate(map_type = forcats::fct_reorder(map_type, pipeline_type)) 
+
 pval <- kruskal.test(sq_error~factor(map_type), data=rmsd_df)$p.value
 
-rmse_bar <- ggplot(data=rmsd_df, aes(x = map_type, y = abs(sq_error), fill = map_type)) +
+colors <- c("#E69F00", "#F0E442", "#009E73", "#56B4E9")
+rmse_bar <- ggplot(data=rmsd_df, aes(x = map_type, y = (sq_error), fill = map_type)) +
     geom_violin() +
-    labs(x = ' ', y = expression(paste(Delta~'log2(fold change)'))) +
+    labs(x = 'Pipeline', y = expression(paste(Delta~'log2(fold change)'))) +
     theme(legend.position = 'none') +
-    theme(axis.text.x = element_blank())  
+    scale_fill_manual(values=colors)
 
-p <- plot_grid(rmse_bar, gene_roc_p, labels = letters[1:2], label_size=20)
+p <- plot_grid(rmse_bar, gene_roc_p, 
+               labels = letters[1:2], 
+               label_size=20,ncol=1,
+               align='v', axis='l')
 figurepath <- str_c(project_path, '/figures')
 figurename <- str_c(figurepath, '/taqman_roc.pdf')
-save_plot(p, file=figurename,  base_width=12, base_height=7) 
+save_plot(p, file=figurename,  base_width=10, base_height=8) 
 message('Written: ', figurename)
     
 missing_gene <- df %>% 

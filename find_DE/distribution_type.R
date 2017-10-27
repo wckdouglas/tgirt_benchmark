@@ -109,7 +109,9 @@ plot_df <- merge_df %>%
     ungroup() %>%
     mutate(samplename = str_replace(samplename, 'Sample_','')) %>%
     mutate(samplename = str_replace(samplename, '_','')) %>%
-    mutate(type = forcats::fct_reorder(type, gene_count , sum))
+    mutate(type = forcats::fct_reorder(type, gene_count , sum)) %>%
+    mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',map_type),1,2)) %>%
+    mutate(map_type = forcats::fct_reorder(map_type, pipeline_type))
 
 friedman_p <-  plot_df %>% 
     group_by(map_type, samplename) %>% 
@@ -126,7 +128,7 @@ friedman_per_type_p <- plot_df %>%
 
 #per type p value
 all_comparison <- gtools::permutations(n=4,r=2,
-                                      v=unique(plot_df$map_type),
+                                      v=unique(as.character(plot_df$map_type)),
                                       repeats.allowed=F)
 get_all_p <-function(x1, x2, all_comparison, plot_df){
     compare <- str_c(x1, x2, sep='|')
@@ -135,8 +137,12 @@ get_all_p <-function(x1, x2, all_comparison, plot_df){
         filter(map_type == x1 | map_type == x2) %>%
         group_by(map_type, samplename) %>%
         summarize(gc = sum(gene_count)) %>% 
-        wilcox.test(gc~map_type, data=., paired=T) %>%
-        .$p.value
+        tbl_df
+    
+    a <- wilcox_p %>% filter(map_type == x1)
+    b <- wilcox_p %>% filter(map_type == x2)
+    wilcox_p <- effsize::cohen.d(a$gc, b$gc, paired=T) %>%
+        .$estimate
     return(data.frame(wilcox_p, compare))
 }
 pval_df <- all_comparison %>%
@@ -147,7 +153,7 @@ pval_df <- all_comparison %>%
 
 #per type p value
 all_comparison = gtools::permutations(n=4,r=2,
-                                      v=unique(plot_df$map_type),
+                                      v=unique(as.character(plot_df$map_type)),
                                       repeats.allowed=F)
 get_p <-function(i, all_comparison, plot_df){
     compare <- str_c(all_comparison[i,1],all_comparison[i,2],sep='|')
@@ -167,13 +173,13 @@ get_p <-function(i, all_comparison, plot_df){
 pval_df <- map_df(1:nrow(all_comparison), get_p, all_comparison, plot_df) %>%
     mutate(comparison = str_replace(comparison,'\\|', ' vs ')) %>%
     filter(!is.na(p))
-colors <- RColorBrewer::brewer.pal(12,'Paired')
-colors <- c(colors,'darkgrey')
-pv_p <- ggplot(pval_df, aes(x=comparison, y = -log10(p), color = type)) + 
+colors <- RColorBrewer::brewer.pal(9,'Dark2')
+colors <- c(colors,'darkgrey','#D8BA90', '#7BCBD5', '#87CDA9')
+pv_p <- ggplot(pval_df, aes(x=comparison, y = -log10(p), color = comparison)) + 
     geom_jitter() +
     geom_hline(yintercept = -log10(0.05), color='red') +
     labs(x = ' ', y = '-log10(Wilcox test p-value)', color = ' ')  +
-    facet_wrap(~comparison, scale='free_x') +
+    facet_wrap(~type, scale='free_x') +
     theme(axis.ticks.x = element_blank()) +
     theme(axis.text.x = element_blank()) +
     scale_color_manual(values = colors) +
@@ -185,12 +191,12 @@ message('Plotted: ', figurename)
 
 #make color
 gene_count_p <- ggplot(data = plot_df,
-        aes(x = samplename, y = gene_count, fill = type)) +
+        aes(x = map_type, y = gene_count, fill = type)) +
     geom_bar(stat='identity') +
-    facet_grid(~map_type) +
+    facet_grid(~samplename) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5)) +
-    scale_fill_manual(values = colors) +
-    labs(x = ' ', y = 'Number of detected genes', fill= ' ')
+    scale_fill_manual(values = rev(colors)) +
+    labs(x = 'Pipeline', y = 'Number of detected genes', fill= ' ')
 #merge_df %>% group_by(map_type,samplename,type) %>% summarize(n())
 #merge_df.spread <- merge_df %>% 
 #    mutate(samplename = str_c(samplename, map_type)) %>% 
@@ -223,54 +229,130 @@ dist_p <-ggplot(data = df, aes(x=x_name, y = percentage_count, fill=type)) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5)) +
     scale_fill_manual(values = colors)
 
-p<-plot_grid(gene_count_p, ercc_lm, ercc_r2, 
-             labels=letters[1:3], ncol=1, label_size=20)
+p<-ggdraw() +
+    draw_plot(gene_count_p, 0.02, 0.6, 0.95, 0.39)+
+    draw_plot(ercc_lm, 0.02, 0.3, 0.95, 0.3) +
+    draw_plot(ercc_r2, 0.02, 0, 0.95, 0.3) +
+    draw_plot_label(label=letters[1:3], x=rep(0,3), y=c(1,0.6,0.3), size=20)
+
+p <- plot_grid(gene_count_p, ercc_lm, 
+               ncol=1, align='v', axis='l',
+               labels = letters[1:2],
+               label_size = 20,
+               rel_heights=c(2,1))
 figurepath <- '/stor/work/Lambowitz/cdw2854/bench_marking/figures'
 figurename <- file.path(figurepath , 'exploring_genes.pdf')
-ggsave(p, file=figurename, width = 10,height=12)
+ggsave(p, file=figurename, width = 12,height=12)
 message('Plotted: ', figurename)
     
 
+average_df <- merge_df %>%
+    filter(abundance > 0.1) %>%
+    mutate(samplename = str_replace(samplename,'_[123]$','')) %>%
+    group_by(map_type, id, type, samplename) %>%
+    summarize(abundance = mean(log2(abundance))) %>%
+    ungroup()  %>%
+    #select(map_type, id, type, samplename, abundance) %>%
+    tbl_df
+ 
 
 
 colors <- RColorBrewer::brewer.pal(n=8,'Dark2')
 colors <- c(colors,'darkblue', 'firebrick4','darkorchid4','darkslategray3')
+gene_type_cor_dfs <- function(comp1, comp2, average_df){
+    comparison_label <- str_c(comp1,' vs ',comp2)
+    
+    total_cor <- average_df %>%
+        filter(map_type %in% c(comp1, comp2)) %>%
+        spread(map_type, abundance, drop=T) %>%
+        set_names(c('id','type','samplename','a','b')) %>%
+        group_by(samplename) %>%
+        summarize(correlation = cor(a, b, use='pairwise.complete.obs')) %>%
+        mutate(type='Total RNA')
+        
+    average_df %>%
+        filter(map_type %in% c(comp1, comp2)) %>%
+        spread(map_type, abundance, drop=T) %>%
+        set_names(c('id','type','samplename','a','b')) %>%
+        group_by(type, samplename) %>%
+        summarize(correlation = cor(a, b, use='pairwise.complete.obs')) %>%
+        ungroup() %>%
+        rbind(total_cor) %>%
+        group_by(type) %>%
+        summarize(average_cor = mean(correlation),
+              stdev = sd(correlation)) %>%
+        mutate(comparison = comparison_label) %>%
+        ungroup() %>%
+        return
+}
+all_comparisons <- merge_df %>%
+    mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',map_type),1,2)) %>%
+    mutate(map_type = forcats::fct_reorder(map_type, pipeline_type)) %>%
+    .$map_type %>% 
+    levels %>% 
+    combn(2)
+cor_df <- map2_df(all_comparisons[1,], 
+                  all_comparisons[2,], 
+                  gene_type_cor_dfs, average_df) %>%
+    mutate(label = ifelse(comparison %in% c('HISAT2+FeatureCounts vs TGIRT-map','kallisto vs salmon'),
+                          'Within type','Across type')) %>%
+    mutate(type = forcats::fct_reorder(type, average_cor, min)) %>%
+    mutate(type = factor(type) %>% relevel('Total RNA'))  %>%
+    mutate(type_label = ifelse(type=='Total RNA', 'Total RNA', 'Individual gene type'))
+    
+cor_p <- ggplot(data=cor_df %>%
+           mutate(comparison = forcats::fct_reorder(comparison, -average_cor, sum)), 
+        aes(fill=type_label, x=type, y = average_cor)) + 
+    geom_bar(stat='identity') + 
+    geom_errorbar(aes(ymin=average_cor - stdev, ymax=average_cor + stdev), width=0.5) +
+    facet_wrap(~comparison) + 
+    scale_fill_manual(values=c('grey','red')) +
+    theme(axis.text.x = element_text(angle=75, hjust=1)) +
+    labs(x = 'RNA type', y = expression(rho), fill='RNA type')+
+    panel_border()
+figurename <- file.path(figurepath , 'genes_correlations.pdf')
+ggsave(cor_p, file = figurename, width = 13, height=8)
+
+
 #colors <- RColorBrewer::brewer.pal(12,'Paired')
 #colors <- c(colors,'darkgrey')
-samples <- merge_df %>% .$samplename %>% str_replace(.,'_[123]','') %>% unique 
-for (sample_type in samples){
-    figurename <- str_c(figurepath, '/pair_type',sample_type,'.png')
-    png(figurename,width = 18, height = 16, unit='in', res=200)
-    matrix_df <- merge_df %>% 
-        filter(grepl(sample_type,samplename)) %>% 
-        filter(abundance > 0.1) %>% 
-        group_by(map_type, id, type) %>%
-        summarize(abundance = mean(log2(abundance))) %>%
-        ungroup()  %>%
-        spread(map_type, abundance, drop=T) %>%
-        inner_join(tbl_df(.) %>% 
-                   group_by(type) %>% 
-                   summarize(count=n())
-        ) %>%
-        mutate(type = str_c(type, ' (n=', count,')')) %>%
-        select(-id, -count)    %>%
-        set_names(make.names(names(.)))
-    p <- ggpairs(matrix_df, 
-                columns = names(matrix_df%>%select(-type)),
-                aes(alpha=0.7,color = type)) 
-    for (i in 1:p$nrow){
-        for (j in 1:p$ncol){
-            if (i!=j){
-                p[i,j] = p[i,j] + scale_color_manual(values=colors)
-            }else{
-                p[i,j] = p[i,j] + scale_fill_manual(values=colors)
-            }
-        }
-    }
-    print(p)
-    dev.off()
-    message('Plotted: ', figurename)
-}
+#samples <- merge_df %>% .$samplename %>% str_replace(.,'_[123]','') %>% unique
+#for (sample_type in samples){
+#    figurename <- str_c(figurepath, '/pair_type',sample_type,'.png')
+#    png(figurename,width = 18, height = 16, unit='in', res=200)
+#    matrix_df <- merge_df %>%
+#        filter(grepl(sample_type,samplename)) %>%
+#        filter(abundance > 0.1) %>%
+#        group_by(map_type, id, type) %>%
+#        summarize(abundance = mean(log2(abundance))) %>%
+#         ungroup()  %>%
+#         mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',map_type),1,2)) %>%
+#         mutate(map_type = forcats::fct_reorder(map_type, pipeline_type)) %>%
+#         select(-pipeline_type) %>%
+#         spread(map_type, abundance, drop=T) %>%
+#         inner_join(tbl_df(.) %>%
+#                    group_by(type) %>%
+#                    summarize(count=n())
+#         ) %>%
+#         mutate(type = str_c(type, ' (n=', count,')')) %>%
+#         select(-id, -count)    %>%
+#         set_names(make.names(names(.)))
+#     p <- ggpairs(matrix_df,
+#                 columns = names(matrix_df%>%select(-type)),
+#                 aes(alpha=0.7,color = type), xlab='log2(TPM)', ylab='log2(TPM)') 
+#     for (i in 1:p$nrow){
+#         for (j in 1:p$ncol){
+#             if (i!=j){
+#                 p[i,j] = p[i,j] + scale_color_manual(values=colors)
+#             }else{
+#                 p[i,j] = p[i,j] + scale_fill_manual(values=colors)
+#             }
+#         }
+#     }
+#     print(p)
+#     dev.off()
+#     message('Plotted: ', figurename)
+# }
 
 quantile_group <- rev(c('0-25%','26-50%','51-75%','76-100%'))
 spreaded_df <-merge_df %>%
@@ -279,14 +361,14 @@ spreaded_df <-merge_df %>%
     group_by(map_type, samplename, id) %>%
     summarize(abundance = mean(log2(abundance))) %>%
     ungroup() %>%
-    group_by(id, samplename) %>% 
+    group_by(id, samplename) %>%
     do(data_frame(
-        map_type=.$map_type, 
+        map_type=.$map_type,
         abundance = .$abundance,
         mean_abundance = mean(.$abundance)
     )) %>%
     ungroup() %>%
-    spread(map_type, abundance, drop=T) %>% 
+    spread(map_type, abundance, drop=T) %>%
     drop_na() %>%
     set_names(make.names(names(.))) %>%
     tbl_df
@@ -298,17 +380,17 @@ group_expression_df <- spreaded_df %>%
     mutate(pc_x = ntile(mean_abundance, 4)) %>%
     ungroup() %>%
     mutate(pct_group = sapply(pc_x, function(x) quantile_group[x])) %>%
-    select(-pc_x, -mean_abundance,-id) %>% 
-    group_by(pct_group,samplename) %>% 
-    nest() %>% 
-    mutate(cor_matrix = map(data,cor)) %>% 
-    mutate(cor_matrix = map(cor_matrix, function(x) {data.frame(x) %>% 
+    select(-pc_x, -mean_abundance,-id) %>%
+    group_by(pct_group,samplename) %>%
+    nest() %>%
+    mutate(cor_matrix = map(data,cor)) %>%
+    mutate(cor_matrix = map(cor_matrix, function(x) {data.frame(x) %>%
                                                     tibble::rownames_to_column()})
-    ) %>% 
+    ) %>%
     unnest(cor_matrix) %>%
     gather(map_type, cor_value, -pct_group:-rowname) %>%
-    filter(rowname != map_type) %>% 
-    mutate(comparison = map2(rowname, map_type, 
+    filter(rowname != map_type) %>%
+    mutate(comparison = map2(rowname, map_type,
                              function(x,y) {paste(sort(c(x,y)), collapse=' vs ')})) %>%
     mutate(comparison = unlist(comparison)) %>%
     mutate(comparison = stri_replace_all_fixed(comparison,'HISAT2.feat','HISAT2+feat')) %>%
@@ -317,34 +399,42 @@ group_expression_df <- spreaded_df %>%
     distinct() %>%
     ungroup() %>%
     mutate(pct_group = factor(pct_group, levels = rev(quantile_group))) %>%
+    mutate(comparison = str_replace(comparison,'\\.','+')) %>%
+    mutate(samplename = str_replace(samplename,'_',' ')) %>%
+    group_by(pct_group, comparison) %>%
+    summarize(cor_value = mean(cor_value)) %>%
+    ungroup() %>%
+    mutate(comp_type = ifelse(comparison %in% c('HISAT2+FeatureCounts vs TGIRT-map', 'kallisto vs salmon'),
+                              1,2)) %>%
+    mutate(comparison = forcats::fct_reorder(comparison, comp_type)) %>%
     tbl_df
 
-expression_cor_line_plot <- ggplot(group_expression_df, 
-                        aes(x=pct_group, y= cor_value, linetype=samplename,
-                            color = comparison, group=interaction(comparison,samplename))) + 
-    geom_line() + 
-    labs(x = 'Expression level (top %)',y="Pearson's correlation of\nestimated expression level", 
-         color = ' ', linetype=' ') +
-    scale_color_manual(values = RColorBrewer::brewer.pal(6,'Dark2'))
+expression_cor_line_plot <- ggplot(group_expression_df,
+                        aes(x=pct_group, y= cor_value, 
+                            color = comparison, group=comparison)) +
+    geom_line(size=2, alpha=0.7) +
+    labs(x = 'Expression level (top %)',y="Pearson's correlation of\nestimated expression level",
+         color = ' ') +
+    scale_color_manual(values = c('#D68C95', '#C79770', '#7AAD6E', '#30B1B1', '#949DD5', '#C68DC8'))
 figurename <- str_c(figurepath, '/cor_expressino_line_plot.pdf')
 ggsave(expression_cor_line_plot, file = figurename, width=7, height=7)
 message('Plotted: ', figurename)
 
 
-gene_length_cor <- spreaded_df %>% 
+gene_length_cor <- spreaded_df %>%
     inner_join(gene_length_df) %>%
     mutate(gene_length_group = ntile(gene_length,4)) %>%
     select(-id,-mean_abundance,-gene_length) %>%
     group_by(gene_length_group, samplename) %>%
     nest() %>%
-    mutate(cor_matrix = map(data,cor)) %>% 
-    mutate(cor_matrix = map(cor_matrix, function(x) {data.frame(x) %>% 
+    mutate(cor_matrix = map(data,cor)) %>%
+    mutate(cor_matrix = map(cor_matrix, function(x) {data.frame(x) %>%
                                                     tibble::rownames_to_column()})
-    ) %>% 
+    ) %>%
     unnest(cor_matrix) %>%
     gather(map_type, cor_value, -gene_length_group:-rowname) %>%
-    filter(rowname != map_type) %>% 
-    mutate(comparison = map2(rowname, map_type, 
+    filter(rowname != map_type) %>%
+    mutate(comparison = map2(rowname, map_type,
                              function(x,y) {paste(sort(c(x,y)), collapse=' vs ')})) %>%
     mutate(comparison = unlist(comparison)) %>%
     select(-rowname, -map_type) %>%
@@ -354,75 +444,83 @@ gene_length_cor <- spreaded_df %>%
     mutate(gene_length_group = factor(gene_length_group, levels = rev(quantile_group))) %>%
     mutate(comparison = stri_replace_all_fixed(comparison,'HISAT2.feat','HISAT2+feat')) %>%
     mutate(comparison = stri_replace_all_fixed(comparison,'TGIRT.map','TGIRT-map')) %>%
+    mutate(comparison = str_replace(comparison,'\\.','+')) %>%
+    mutate(samplename = str_replace(samplename,'_',' ')) %>%
+    group_by(comparison, gene_length_group) %>%
+    summarize(cor_value = mean(cor_value)) %>%
+    ungroup() %>%
+    mutate(comp_type = ifelse(comparison %in% c('HISAT2+FeatureCounts vs TGIRT-map', 'kallisto vs salmon'),
+                              1,2)) %>%
+    mutate(comparison = forcats::fct_reorder(comparison, comp_type)) %>%
     tbl_df
 
-length_cor_line_plot <- ggplot(gene_length_cor, 
-                        aes(x=gene_length_group, y= cor_value, linetype=samplename,
-                            color = comparison, group=interaction(comparison,samplename))) + 
-    geom_line() + 
-    labs(x = 'Gene length (Long to short %)',y="Pearson's correlation of\nestimated expression level", 
+length_cor_line_plot <- ggplot(gene_length_cor,
+                        aes(x=gene_length_group, y= cor_value,
+                            color = comparison, group=comparison)) +
+    geom_line(size=2, alpha=0.7) +
+    labs(x = 'Gene length (Long to short %)',y="Pearson's correlation of\nestimated expression level",
          color = ' ', linetype=' ') +
-    scale_color_manual(values = RColorBrewer::brewer.pal(6,'Dark2'))
+    scale_color_manual(values = c('#D68C95', '#C79770', '#7AAD6E', '#30B1B1', '#949DD5', '#C68DC8'))
 figurename <- str_c(figurepath, '/cor_gene_length_line_plot.pdf')
 ggsave(length_cor_line_plot, file = figurename, width=7, height=7)
 message('Plotted: ', figurename)
 
-cor_lines <- plot_grid(length_cor_line_plot, expression_cor_line_plot, 
-          ncol=1, labels = letters[1:2], label_size=20) 
+cor_lines <- plot_grid(length_cor_line_plot, expression_cor_line_plot,
+          ncol=1, labels = letters[1:2], label_size=20)
 figurename <- str_c(figurepath, '/cor_line_plots.pdf')
 ggsave(cor_lines, file = figurename, width=8, height=10)
 message('Plotted: ', figurename)
 
-
-plot_venn <- function(which_sample,d){
-    colors <- gg_color_hue(4)
-    plot_df <- d %>% filter(samplename == which_sample)
-    samples <- plot_df %>% filter(!grepl(',',maps)) %>% .$maps %>%unique
-    sample_1 <- samples[1]
-    sample_2 <- samples[2]
-    sample_3 <- samples[3]
-    sample_4 <- samples[4]
-
-    figurename <- str_c(figurepath,'/venn_gene_',which_sample,'.pdf')
-    figurename <- str_replace_all(figurename,' ','_')
-    pdf(figurename, width = 15, height=10)
-    venn.plot <- draw.quad.venn(
-                area1 = filter(plot_df, grepl(sample_1,maps, fixed=T))$number_of_genes %>% sum,
-                area2 = filter(plot_df, grepl(sample_2,maps, fixed=T))$number_of_genes %>% sum,
-                area3 = filter(plot_df, grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
-                area4 = filter(plot_df, grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
-
-                n12 = filter(plot_df, grepl(sample_1,maps, fixed=T), grepl(sample_2,maps, fixed=T))$number_of_genes %>% sum,
-                n13 = filter(plot_df, grepl(sample_1,maps, fixed=T), grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
-                n14 = filter(plot_df, grepl(sample_1,maps, fixed=T), grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
-                n23 = filter(plot_df, grepl(sample_2,maps, fixed=T), grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
-                n24 = filter(plot_df, grepl(sample_2,maps, fixed=T), grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
-                n34 = filter(plot_df, grepl(sample_3,maps, fixed=T), grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
-
-                n123 = filter(plot_df, grepl(sample_1,maps, fixed=T),
-                              grepl(sample_2,maps, fixed=T), grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
-                n124 = filter(plot_df, grepl(sample_1,maps, fixed=T),
-                              grepl(sample_2,maps, fixed=T), grepl(sample_4, maps, fixed=T))$number_of_genes %>% sum,
-                n134 = filter(plot_df, grepl(sample_1,maps, fixed=T),
-                              grepl(sample_3,maps, fixed=T), grepl(sample_4, maps, fixed=T))$number_of_genes %>% sum,
-                n234 = filter(plot_df, grepl(sample_2,maps, fixed=T),
-                              grepl(sample_3,maps, fixed=T), grepl(sample_4, maps, fixed=T))$number_of_genes %>% sum,
-
-                n1234 = filter(plot_df, maps == str_c(sample_1, sample_2,
-                                                      sample_3, sample_4,sep=','))$number_of_genes %>% sum,
-                category = samples,
-                fill = colors,
-                lty = "dashed",
-                cex = 1.5, cat.cex = 1.5,
-                cat.col = colors)
-    dev.off()
-    message('Plotted: ', figurename)
-}
-
-gg_color_hue <- function(n) {
-    hues = seq(15, 375, length = n + 1)
-    hcl(h = hues, l = 65, c = 100)[1:n]
-}
+# 
+# plot_venn <- function(which_sample,d){
+#     colors <- gg_color_hue(4)
+#     plot_df <- d %>% filter(samplename == which_sample)
+#     samples <- plot_df %>% filter(!grepl(',',maps)) %>% .$maps %>%unique
+#     sample_1 <- samples[1]
+#     sample_2 <- samples[2]
+#     sample_3 <- samples[3]
+#     sample_4 <- samples[4]
+# 
+#     figurename <- str_c(figurepath,'/venn_gene_',which_sample,'.pdf')
+#     figurename <- str_replace_all(figurename,' ','_')
+#     pdf(figurename, width = 15, height=10)
+#     venn.plot <- draw.quad.venn(
+#                 area1 = filter(plot_df, grepl(sample_1,maps, fixed=T))$number_of_genes %>% sum,
+#                 area2 = filter(plot_df, grepl(sample_2,maps, fixed=T))$number_of_genes %>% sum,
+#                 area3 = filter(plot_df, grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
+#                 area4 = filter(plot_df, grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
+# 
+#                 n12 = filter(plot_df, grepl(sample_1,maps, fixed=T), grepl(sample_2,maps, fixed=T))$number_of_genes %>% sum,
+#                 n13 = filter(plot_df, grepl(sample_1,maps, fixed=T), grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
+#                 n14 = filter(plot_df, grepl(sample_1,maps, fixed=T), grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
+#                 n23 = filter(plot_df, grepl(sample_2,maps, fixed=T), grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
+#                 n24 = filter(plot_df, grepl(sample_2,maps, fixed=T), grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
+#                 n34 = filter(plot_df, grepl(sample_3,maps, fixed=T), grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
+# 
+#                 n123 = filter(plot_df, grepl(sample_1,maps, fixed=T),
+#                               grepl(sample_2,maps, fixed=T), grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
+#                 n124 = filter(plot_df, grepl(sample_1,maps, fixed=T),
+#                               grepl(sample_2,maps, fixed=T), grepl(sample_4, maps, fixed=T))$number_of_genes %>% sum,
+#                 n134 = filter(plot_df, grepl(sample_1,maps, fixed=T),
+#                               grepl(sample_3,maps, fixed=T), grepl(sample_4, maps, fixed=T))$number_of_genes %>% sum,
+#                 n234 = filter(plot_df, grepl(sample_2,maps, fixed=T),
+#                               grepl(sample_3,maps, fixed=T), grepl(sample_4, maps, fixed=T))$number_of_genes %>% sum,
+# 
+#                 n1234 = filter(plot_df, maps == str_c(sample_1, sample_2,
+#                                                       sample_3, sample_4,sep=','))$number_of_genes %>% sum,
+#                 category = samples,
+#                 fill = colors,
+#                 lty = "dashed",
+#                 cex = 1.5, cat.cex = 1.5,
+#                 cat.col = colors)
+#     dev.off()
+#     message('Plotted: ', figurename)
+# }
+# 
+# gg_color_hue <- function(n) {
+#     hues = seq(15, 375, length = n + 1)
+#     hcl(h = hues, l = 65, c = 100)[1:n]
+# }
 
 
 venn_Df <- merge_df %>% 
@@ -436,9 +534,13 @@ venn_Df <- merge_df %>%
               maps = str_c(unique(map_type), collapse=','),
               abundance = str_c(abundance, collapse=',')
     ) %>% 
+    ungroup()%>%
+    mutate(samplename = str_replace(samplename,'_',' ')) %>%
     ungroup %>% 
     tbl_df 
 
+colors <- RColorBrewer::brewer.pal(n=8,'Dark2')
+colors <- c(colors,'darkblue', 'firebrick4','darkorchid4','darkslategray3')
 sep_p <- venn_Df %>% 
     group_by(maps,type,samplename) %>% 
     summarize(count = n()) %>% 
@@ -450,9 +552,11 @@ sep_p <- venn_Df %>%
 #            )
 #    ) %>%  
     filter(!grepl(',',maps)) %>%
-    ggplot(data =., aes(x = samplename, fill=type, y = count)) + 
+    mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',maps),1,2)) %>%
+    mutate(maps = forcats::fct_reorder(maps, pipeline_type)) %>%
+    ggplot(data =., aes(x = maps, fill=type, y = count)) + 
         geom_bar(stat='identity')  +
-        facet_grid(.~maps, scale='free_x') +
+        facet_grid(.~samplename, scale='free_x') +
         theme(axis.text.x = element_text(angle=90, hjust= 1, vjust=0.5)) +
         labs(x =' ', fill=' ', y = 'Number of genes')+
         scale_fill_manual(values = colors)
@@ -466,7 +570,7 @@ venn_Df<-venn_Df %>%
     summarize(number_of_genes = n()) %>%
     ungroup()
 
-ps <- lapply(venn_Df$samplename%>%unique,plot_venn, venn_Df)
+#ps <- lapply(venn_Df$samplename%>%unique,plot_venn, venn_Df)
 
 gene_count_df <- merge_df %>% 
     filter(abundance > 0.1) %>%

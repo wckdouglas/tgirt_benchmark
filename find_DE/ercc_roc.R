@@ -41,7 +41,19 @@ df <- file.path(project_path, 'DEgenes') %>%
                 grepl('Conventional',.$map_type) ~ "HISAT2+FeatureCounts",
                 grepl('Customized', .$map_type) ~ "TGIRT-map",
                 TRUE~ .$map_type)) %>%
+    mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',map_type),1,2)) %>%
+    mutate(map_type = forcats::fct_reorder(map_type, pipeline_type)) %>%
     tbl_df
+
+error_df <- df %>% 
+    filter(!is.na(error)) %>%
+    mutate(error = abs(error)) %>%
+    group_by(map_type)  %>%
+    summarize(me = mean(error),
+              se = sd(error)) %>%
+    ungroup() %>%
+    mutate(y_coor = 1) %>%
+    mutate(error_str = str_c(signif(me,2),' ± ',signif(se,2)))
 
 rmse_df <- df %>% 
     filter(!is.na(error)) %>%
@@ -67,19 +79,40 @@ ka_vs_cust <-rmse_df %>% filter(grepl('TG|Ka',map_type))%>% wilcox.test(rmse~map
 sal_vs_cust <-rmse_df %>% filter(grepl('TG|Sa',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
 con_vs_cust <-rmse_df %>% filter(grepl('TG|HI',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
 
+error_table <- str_c(figurepath, '/roc_rmse.csv')
+rmse_df %>% 
+    select(-y_coor) %>% 
+    mutate(rmse = signif(rmse,3))%>% 
+    spread(map_type, rmse) %>%
+    write_csv(error_table) 
+
 ercc_de_p<-ggplot()+
-    geom_point(data=df, aes(x = log2(av_exp), 
+    geom_point(data=df %>% 
+                inner_join(error_df) %>% 
+                mutate(map_type = str_c(map_type,'\n|Error| = ',error_str)) %>%
+                mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',map_type),1,2)) %>%
+                mutate(map_type = forcats::fct_reorder(map_type, pipeline_type)) , 
+                        aes(x = log2(av_exp), 
                             y = log2FoldChange_AB, 
                             color = group)) +
     geom_hline(data=df %>% select(group, log2fold),
                aes(yintercept = log2fold, color = group)) +
-    geom_text(data=rmse_df, x= 10,
-              aes(label = str_c('RMSE: ',signif(rmse,3)), color = group, y = 3.5 - y_coor * 0.25)) +
+#    geom_text(data=error_df, x= 4,
+#              aes(label = str_c('Error: ',error), color = group, y = 5 - y_coor * 0.27)) +
     facet_grid(~map_type) +
     labs(x = 'Average expression (log2)', 
          y = 'Fold change between sample AB (log2)', 
          color = 'ERCC\nDE group') +
     scale_color_manual(values = RColorBrewer::brewer.pal(8, "Dark2"))
+
+colors <- c("#E69F00", "#F0E442", "#009E73", "#56B4E9")
+error_plot <- ggplot(data=df, aes(fill = map_type, y=error, x = group)) +
+    geom_violin()+
+    labs(y =  expression(paste(Delta~'log2(fold change)')), 
+         x = 'Designed ERCC differentially-expressed group (Sample B: Sample A)', 
+         fill = ' ') +
+    geom_hline(yintercept = 0, linetype=2, alpha=0.6) + 
+    scale_fill_manual(values=colors)
 
 # 23 non DE in ERCC, 69 DE
 ercc_roc_df <- df %>% 
@@ -89,7 +122,7 @@ ercc_roc_df <- df %>%
     nest() %>%
     mutate(roc_model = map(data, ~pROC::roc(.$label,.$padj_AB))) %>%
     mutate(tpr = map(roc_model, ~.$sensitivities)) %>%
-    mutate(fpr = map(roc_model, ~1 - .$specificities))
+    mutate(fpr = map(roc_model, ~1 - .$specificities)) 
 
 auc_df <- ercc_roc_df %>%
     mutate(auc = map_dbl(roc_model, pROC::auc)) %>%
@@ -99,16 +132,22 @@ auc_df <- ercc_roc_df %>%
 roc_df <- ercc_roc_df %>%
     unnest(tpr, fpr) %>%
     inner_join(auc_df) %>%
-    mutate(map_type = str_c(map_type, ' (AUC: ',auc,')'))
+    mutate(map_type = str_c(map_type, ' (AUC: ',auc,')')) %>%
+    mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',map_type),1,2)) %>%
+    mutate(map_type = forcats::fct_reorder(map_type, pipeline_type))
 
 roc_p <- ggplot(data=roc_df %>% arrange(tpr), aes(x = fpr, y = tpr, color = map_type)) +
-    geom_line()+
+    geom_line(size=2)+
     labs(x = 'False positive rate', y = 'True positive rate', color = ' ') +
-    theme(legend.position = c(0.75,0.25)) +
-    geom_abline(slope = 1, intercept = 0)
+    theme(legend.position = c(0.5,0.25)) +
+    geom_abline(slope = 1, intercept = 0, linetype=2)+
+    scale_color_manual(values=colors)
 
 
-p <- plot_grid(ercc_de_p, roc_p, ncol=1, labels = letters[1:2], label_size=20)
+p <- plot_grid(error_plot, roc_p, 
+               ncol=1, labels = letters[1:2], 
+               label_size=20,
+               align='v', axis='l')
 figurepath <- str_c(project_path, '/figures')
 figurename <- str_c(figurepath, '/ercc_roc.pdf')
 save_plot(p, file=figurename,  base_width=10, base_height=10) 
