@@ -38,7 +38,7 @@ df <- file.path(project_path, 'DEgenes') %>%
     mutate(pvalue_AB = ifelse(is.na(pvalue_AB),1,pvalue_AB)) %>%
     mutate(error = log2FoldChange_AB-log2fold)  %>% 
     mutate(map_type = case_when(
-                grepl('Conventional',.$map_type) ~ "HISAT2+FeatureCounts",
+                grepl('Conventional',.$map_type) ~ "HISAT2+featureCounts",
                 grepl('Customized', .$map_type) ~ "TGIRT-map",
                 TRUE~ .$map_type)) %>%
     mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',map_type),1,2)) %>%
@@ -72,12 +72,23 @@ pval <- rmse_df %>%
     mutate(map_type = factor(map_type))%>% 
     friedman.test(rmse~map_type|group,data=.) %>%
     .$p.value
-sal_vs_kall <- rmse_df %>% filter(grepl('Ka|Sa',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
-sal_vs_conv <- rmse_df %>% filter(grepl('HI|Sa',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
-ka_vs_conv <- rmse_df %>% filter(grepl('HI|Ka',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
-ka_vs_cust <-rmse_df %>% filter(grepl('TG|Ka',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
-sal_vs_cust <-rmse_df %>% filter(grepl('TG|Sa',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
-con_vs_cust <-rmse_df %>% filter(grepl('TG|HI',map_type))%>% wilcox.test(rmse~map_type,paired=T, data=.)
+
+all_comparison <- gtools::permutations(n=4,r=2,
+                                       v=unique(as.character(rmse_df$map_type)),
+                                       repeats.allowed=F)
+get_all_p <-function(x1, x2, rmse_df){
+    compare <- str_c(x1, x2, sep='|')
+    p <- rmse_df %>% 
+        filter(map_type == x1 | map_type == x2) %>%
+        wilcox.test(rmse~map_type,paired=T, data=.) %>%
+        .$p.value
+    return(data.frame(p = p, comparison = compare))        
+}
+pval_df <- all_comparison %>%
+    data.frame() %>%
+    mutate(wilcox_p = map2(X1, X2, get_all_p, rmse_df)) %>%
+    unnest(wilcox_p) %>%
+    tbl_df
 
 error_table <- str_c(figurepath, '/roc_rmse.csv')
 rmse_df %>% 
@@ -157,6 +168,6 @@ ercc_roc_table <- str_c(figurepath, '/ercc_roc.csv')
 roc_df %>% 
     mutate(map_type = str_replace(map_type,' \\(AUC: 0.[0-9]+\\)','')) %>%
     select(map_type, auc) %>%
-    rename(auc_ercc = auc) %>%
+    dplyr::rename(auc_ercc = auc) %>%
     distinct() %>%
     write_csv(ercc_roc_table)

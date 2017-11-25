@@ -83,7 +83,7 @@ genome_df <- map2(files, labels, function(x,y) read_tsv(x) %>%
     ) %>%
     ungroup() %>%
     mutate(map_type = case_when(
-                                grepl('conventional',.$map_type) ~ "HISAT2+FeatureCounts",
+                                grepl('conventional',.$map_type) ~ "HISAT2+featureCounts",
                                 grepl('customized', .$map_type) ~ "TGIRT-map",
                                 TRUE~ .$map_type)
     ) %>%
@@ -294,7 +294,7 @@ all_comparisons <- merge_df %>%
 cor_df <- map2_df(all_comparisons[1,], 
                   all_comparisons[2,], 
                   gene_type_cor_dfs, average_df) %>%
-    mutate(label = ifelse(comparison %in% c('HISAT2+FeatureCounts vs TGIRT-map','kallisto vs salmon'),
+    mutate(label = ifelse(comparison %in% c('HISAT2+featureCounts vs TGIRT-map','kallisto vs salmon'),
                           'Within type','Across type')) %>%
     mutate(type = forcats::fct_reorder(type, average_cor, min)) %>%
     mutate(type = factor(type) %>% relevel('Total RNA'))  %>%
@@ -404,7 +404,7 @@ group_expression_df <- spreaded_df %>%
     group_by(pct_group, comparison) %>%
     summarize(cor_value = mean(cor_value)) %>%
     ungroup() %>%
-    mutate(comp_type = ifelse(comparison %in% c('HISAT2+FeatureCounts vs TGIRT-map', 'kallisto vs salmon'),
+    mutate(comp_type = ifelse(comparison %in% c('HISAT2+featureCounts vs TGIRT-map', 'kallisto vs salmon'),
                               1,2)) %>%
     mutate(comparison = forcats::fct_reorder(comparison, comp_type)) %>%
     tbl_df
@@ -449,7 +449,7 @@ gene_length_cor <- spreaded_df %>%
     group_by(comparison, gene_length_group) %>%
     summarize(cor_value = mean(cor_value)) %>%
     ungroup() %>%
-    mutate(comp_type = ifelse(comparison %in% c('HISAT2+FeatureCounts vs TGIRT-map', 'kallisto vs salmon'),
+    mutate(comp_type = ifelse(comparison %in% c('HISAT2+featureCounts vs TGIRT-map', 'kallisto vs salmon'),
                               1,2)) %>%
     mutate(comparison = forcats::fct_reorder(comparison, comp_type)) %>%
     tbl_df
@@ -538,6 +538,7 @@ venn_Df <- merge_df %>%
     mutate(samplename = str_replace(samplename,'_',' ')) %>%
     ungroup %>% 
     tbl_df 
+merge_df %>% write_feather('/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes/all_tpm_table.feather')
 
 colors <- RColorBrewer::brewer.pal(n=8,'Dark2')
 colors <- c(colors,'darkblue', 'firebrick4','darkorchid4','darkslategray3')

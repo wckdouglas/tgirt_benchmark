@@ -44,7 +44,7 @@ df <- project_path %>%
     mutate(sample_id = get_sample_number(samplename)) %>%
     inner_join(ercc_file) %>%
     mutate(map_type = case_when(
-                                grepl('conventional',.$map_type) ~ "HISAT2+FeatureCounts",
+                                grepl('conventional',.$map_type) ~ "HISAT2+featureCounts",
                                 grepl('customized', .$map_type) ~ "TGIRT-map",
                                 TRUE~ .$map_type)) %>%
     mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',map_type),1,2)) %>%

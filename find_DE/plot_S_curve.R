@@ -22,16 +22,19 @@ gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/all_gene
 #    mutate(type= ifelse(grepl('MT-T',name),'tRNA',type)) %>% 
     tbl_df
 
+gene_length <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/genes.length' %>%
+    read_tsv() 
+
 # check <- gene_file %>% group_by(id) %>% summarize(a=n()) %>% filter(a>1)
 # read all tables ====================================================
 project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
 df <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern = '.feather', full.names=T) %>%
-    .[!grepl('abundance|tpm|_[0-9]+',.)] %>%
+    .[!grepl('abundance|tpm|_[0-9]+|fc_table',.)] %>%
     map_df(read_feather) %>%
     mutate(map_type = case_when(
-                grepl('Conventional',.$map_type) ~ "HISAT2+FeatureCounts",
+                grepl('Conventional',.$map_type) ~ "HISAT2+featureCounts",
                 grepl('Customized', .$map_type) ~ "TGIRT-map",
                 TRUE~ .$map_type)) %>%
     tbl_df
@@ -99,11 +102,11 @@ rsquare <- fc_df %>%
     ungroup()%>%
     group_by(map_type,analytic_type, labeling)%>%#,slope) %>%
     summarize(
+        rs = caret::R2(predict, logFC_CD, formula='traditional'),
         sum_err = sum(error^2),
         sum_var = sum((logFC_CD - mean(logFC_CD))^2),
         samplesize=n()
     ) %>%
-    mutate(rs =  1 - sum_err/sum_var) %>%
     mutate(ypos = 1) %>%
     mutate(ypos = cumsum(ypos)) %>%
     ungroup() %>%
@@ -143,11 +146,11 @@ fc_type_df <- gene_file %>%
 rmse_fc <- fc_type_df %>% 
     group_by(map_type) %>% 
     summarize(
+        rs = caret::R2(predict, logFC_CD, formula='traditional'),
         sum_err = sum(error^2),
         sum_var = sum((logFC_CD - mean(logFC_CD))^2),
         samplesize=n()
     ) %>%
-    mutate(rs =  1 - sum_err/sum_var) %>%
     mutate(rs = signif(rs, 3)) %>%
     tbl_df
 
@@ -206,7 +209,7 @@ per_type_r2_df %>%
     select(type, map_type, value)  %>%
     spread(map_type, value) %>%
     mutate(type = str_c('\\textbf{',type,'}')) %>%
-    rename(`RNA type` = type) %>%
+    dplyr::rename(`RNA type` = type) %>%
     write_csv(error_table)
 
 rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)), 
@@ -292,13 +295,10 @@ p2 <- rsquare %>%
         geom_bar(stat='identity') + 
         facet_grid(~labeling) +
         scale_fill_manual(values=colors) +
-        labs(x='Pipelines', y = expression(R^2), fill= ' ') +
+        labs(x='Pipeline', y = expression(R^2), fill= ' ') +
         theme(axis.text.x=element_blank()) +
         ylim(0,1)
 
-figurename <- str_c(figurepath, '/fold_change_supplementary.pdf')
-save_plot(p2 , file=figurename,  base_width=10, base_height=5) 
-message('Saved: ', figurename)
 
 
 fc_type_df %>% 
@@ -307,8 +307,56 @@ fc_type_df %>%
     spread(map_type, baseMean_AB) %>% 
     filter(is.na(Salmon))
 
+fc_type_df %>% 
+    filter(type=='vaultRNA') %>% 
+    select(id,name, type, map_type, baseMean_AB) %>% 
+    spread(map_type, baseMean_AB) 
+
 rmse_table <- str_c(figurepath, '/rmse_fc.csv')
 per_type_r2_df %>% 
     select(rmse,map_type,type,analytic_type) %>%
     spread(type, rmse) %>%
     write_csv(rmse_table)
+
+
+quantile_length <- fc_df %>% 
+#    filter(type != 'Other ncRNA') %>%
+    inner_join(gene_length)  %>%
+    group_by(map_type) %>%
+    nest() %>%
+    mutate(data = map(data, ~mutate(., length_tile = ntile(gene_length, 4)))) %>%
+    unnest(data) %>%
+    ungroup() %>%
+    group_by(map_type, length_tile) %>%
+    summarize(
+        rs = caret::R2(predict, logFC_CD, formula='traditional'),
+        rmse = sqrt(mean(error ^ 2)),
+        samplesize=n()
+    ) %>%
+    ungroup %>%
+    mutate(length_tile_group = case_when(
+                        .$length_tile == 4 ~ '0-25%\n(Longest genes)',
+                        .$length_tile == 3 ~ '25-50%',
+                        .$length_tile == 2 ~ '50-75%',
+                        .$length_tile == 1 ~ '75-100%\n(Shortest genes)'
+    )) %>%
+    tbl_df
+    
+length_tile_p <- ggplot(data=quantile_length, aes(x=map_type, y = rs, fill = map_type)) +
+    geom_bar(stat='identity') +
+    labs(x = 'Pipeline', y = expression('R^2'))+
+    facet_grid(~length_tile_group) +
+    scale_fill_manual(values=colors) +
+    labs(x='Pipeline', y = expression(R^2), fill= ' ') +
+    theme(axis.text.x=element_blank()) 
+
+r2_p <- plot_grid(p2, length_tile_p, ncol=1, align = 'v',
+                  labels = c('A','B'), axis='l')
+figurename <- str_c(figurepath, '/fold_change_supplementary.png')
+save_plot(r2_p , file=figurename,  base_width=10, base_height=10) 
+message('Saved: ', figurename)
+
+
+quantile_length <- fc_df %>% 
+    inner_join(gene_length)  %>%
+    write_feather('/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes/fc_table.feather')

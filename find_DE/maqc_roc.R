@@ -15,8 +15,8 @@ taqman <- '/stor/work/Lambowitz/cdw2854/bench_marking/maqc/taqman_fc_table.feath
     dplyr::rename(id = ensembl_gene_id) %>%
     mutate(real_FC_AB = ifelse(abs(logFC_AB)>0.5, 'DE','notDE')) %>%
     mutate(real_FC_CD = ifelse(abs(logFC_CD)>0.5, 'DE','notDE')) %>%
-    rename(taqman_fc_AB = logFC_AB) %>%
-    rename(taqman_fc_CD = logFC_CD) %>%
+    dplyr::rename(taqman_fc_AB = logFC_AB) %>%
+    dplyr::rename(taqman_fc_CD = logFC_CD) %>%
     dplyr::select(id, real_FC_AB, real_FC_CD, taqman_fc_AB, taqman_fc_CD) %>%
     gather(variable, value, -id) %>% 
     mutate(comparison = str_sub(variable,-2,-1)) %>% 
@@ -37,7 +37,7 @@ df <- project_path %>%
     spread(variable, value) %>%
     inner_join(taqman) %>%
     mutate(map_type = case_when(
-                grepl('Conventional',.$map_type) ~ "HISAT2+FeatureCounts",
+                grepl('Conventional',.$map_type) ~ "HISAT2+featureCounts",
                 grepl('Customized', .$map_type) ~ "TGIRT-map",
                 TRUE~ .$map_type)) %>%
     tbl_df
@@ -115,7 +115,7 @@ missing_gene <- df %>%
     filter(comparison == 'CD') %>% 
     select(-pvalue, - real_FC, - log2FoldChange) %>% 
     spread(map_type, taqman_fc) %>% 
-    filter(is.na(`HISAT2+FeatureCounts`))
+    filter(is.na(`HISAT2+featureCounts`))
 
 df %>% group_by(comparison, map_type) %>% summarize(n())
 
