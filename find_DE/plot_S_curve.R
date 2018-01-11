@@ -14,7 +14,7 @@ library(feather)
 # read gene table
 gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/all_genes.tsv'  %>%
     read_tsv() %>%
-    select(gene_id, name,type) %>% 
+    dplyr::select(gene_id, name,type) %>% 
     dplyr::rename(id = gene_id) %>%
     mutate(id = ifelse(type=='tRNA', name, id)) %>%
     mutate(id = ifelse(grepl('MT',id), str_replace(id,'[0-9]$',''), id)) %>%
@@ -46,7 +46,7 @@ fc_df <- df %>%
     gather(variable, value, -id, -comparison,-map_type) %>%
     filter(!grepl('lfcSE|stat', variable)) %>%
     mutate(variable = str_c(variable, comparison, sep='_')) %>%
-    select(-comparison) %>%
+    dplyr::select(-comparison) %>%
     spread(variable, value) %>%
     dplyr::rename(logFC_AB = log2FoldChange_AB) %>%
     dplyr::rename(logFC_CD = log2FoldChange_CD) %>%
@@ -65,7 +65,7 @@ fc_df <- df %>%
     mutate(k1 = 3*z/(3*z+1)) %>%
     mutate(k2 = z/(z+3)) %>%
     mutate(lower_error = log2(k1 * 2^(logFC_AB) + (1-k1)) - log2(k2 * 2^(logFC_AB) + (1-k2))) %>%
-    select(-z,-k1,-k2) %>%
+    dplyr::select(-z,-k1,-k2) %>%
     #unnest(data) %>%
     #group_by(map_type) %>%
     #nest() %>%
@@ -77,7 +77,7 @@ fc_df <- df %>%
     ungroup() %>%
     mutate(analytic_type = ifelse(grepl('HI|TG',map_type),'Genome Mapping','Alignment-free')) %>%
     inner_join(gene_file %>% 
-                   select(id,name,type) %>% 
+                   dplyr::select(id,name,type) %>% 
                    unique,
                by = 'id') %>%
     tbl_df
@@ -113,32 +113,10 @@ rsquare <- fc_df %>%
     mutate(rs = formatC(round(rs,3), format='f',digits=3)) %>%
     tbl_df
 
-colors <- RColorBrewer::brewer.pal(8, 'Dark2')
-s_p <- ggplot() + 
-    geom_point(data = fc_df %>% arrange(baseMean_AB),# %>% filter(grepl('^TR|tR|[ACTG]{3}$',id)), 
-               aes(color = labeling,x=logFC_AB, y = logFC_CD, alpha=labeling))  + 
-    labs(x = 'Fold change AB (log2)', y = 'Fold change CD (log2)', color = ' ') +
-#    facet_grid(.~analytic_type+map_type) +
-    facet_grid(.~map_type) +
-    xlim(-10,10) +
-    ylim(-2,2) +
-    geom_text(x = -7, data = rsquare, alpha=1,
-              aes(y=2-ypos/5, 
-                  label = paste0('R^2: ',as.character(rs)), 
-                  color = labeling), parse=T, show.legend=F) +
-    geom_text(x = 7, data = rsquare, alpha=1,
-              aes(y=-1-ypos/5,label = paste0('n = ',samplesize), color = labeling), show.legend = F) +
-    geom_line(data = fc_df, aes(x = logFC_AB, y = predict), color ='red') +
-    geom_line(data = fc_df, aes(x = logFC_AB, y = upper_error), color ='red') +
-    geom_line(data = fc_df, aes(x = logFC_AB, y = lower_error), color ='red') +
-    scale_color_manual(values = colors)+
-    scale_alpha_manual(values = c(0.1,1,1,1), guide=F) +
-    panel_border()
-message('Plotted S curve')
 
 
 fc_type_df <- gene_file %>% 
-    select(id,name,type) %>% 
+    dplyr::select(id,name,type) %>% 
     distinct() %>% 
     inner_join(fc_df)  %>%
     tbl_df
@@ -182,7 +160,7 @@ png(figurename)
 sig_DE_df <- fc_df %>% 
     filter(padj_AB<0.05) %>% 
     mutate(map_type =  make.names(str_c(analytic_type, '_',map_type))) %>%
-    select(map_type, padj_AB, id) %>%
+    dplyr::select(map_type, padj_AB, id) %>%
     unique() %>%
     spread(map_type, padj_AB) %>%
     tbl_df
@@ -194,7 +172,9 @@ message('Saved: ', figurename)
 per_type_r2_df <- fc_type_df  %>% 
     group_by(type,map_type,analytic_type) %>%     
     summarize(
-            rmse = sqrt(mean(error^2)),
+            rmse = caret::RMSE(predict, logFC_CD),
+            rs = caret::R2(predict, logFC_CD, formula='traditional'),
+            rs_Cor = caret::R2(predict, logFC_CD),
             samplesize=n()) %>%
     ungroup() %>%
     mutate(prep = str_c(map_type,sep='\n')) %>%
@@ -206,7 +186,7 @@ colors <- c("#E69F00", "#F0E442", "#009E73", "#56B4E9")
 error_table <- str_c(figurepath, '/pertype_rmse.csv')
 per_type_r2_df %>% 
     mutate(value = str_c('\\shortstack{',signif(rmse,3),'\\\\ (',samplesize,')}')) %>%
-    select(type, map_type, value)  %>%
+    dplyr::select(type, map_type, value)  %>%
     spread(map_type, value) %>%
     mutate(type = str_c('\\textbf{',type,'}')) %>%
     dplyr::rename(`RNA type` = type) %>%
@@ -226,11 +206,26 @@ rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)),
     ylim(0,0.8) + 
     scale_fill_manual(values=colors)
 
+r2_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)), 
+                      aes(x=prep,y=rs, fill=prep)) + 
+    geom_bar(stat='identity') +
+    #geom_text(aes(label = str_c(samplesize,'\n(',signif(rmse,3),')')), size=4, hjust=0,vjust=0.5,angle= 90)+
+    facet_wrap(~type, scale='free') +
+    labs(color = ' ', fill= ' ', x= 'Pipeline', y = expression('R^2'), parse=T) +
+    panel_border()+
+    theme(axis.text.x=element_blank())+
+    theme(axis.ticks.x=element_blank())+
+    theme(legend.key.height = unit(2,'line')) +
+    theme(legend.position = c(0.65,0.2)) +
+#    ylim(0,0.8) + 
+    scale_fill_manual(values=colors) +
+    geom_hline(yintercept = 0)
+
 
 colors <- c("#E69F00", "#F0E442", "#009E73", "#56B4E9")
 tRNA_error <- fc_type_df %>% 
     filter(type=='tRNA') %>%
-    select(map_type,error, name) %>%
+    dplyr::select(map_type,error, name) %>%
     mutate(error = abs(error)) %>%
     group_by(map_type) %>%
     nest() %>%
@@ -249,8 +244,6 @@ tRNA_error <- fc_type_df %>%
         draw_text('Alignment-free', 24, 5) +
         draw_text('Alignment-based', 53, 2)
     
-    
-
 font_size = 12
 p <- plot_grid(rmse_type_p+
                    theme(axis.text = element_text(size=font_size),
@@ -284,9 +277,9 @@ message('Saved: ', figurename)
 
 colors <- c("#E69F00", "#F0E442", "#009E73", "#56B4E9")
 p2 <- rsquare %>% 
-    select(map_type, labeling, rs) %>% 
+    dplyr::select(map_type, labeling, rs) %>% 
     rbind(rmse_fc %>% 
-              select(map_type, rs) %>% 
+              dplyr::select(map_type, rs) %>% 
               mutate(labeling = 'Total RNA')
           ) %>%
     mutate(labeling = factor(labeling, levels=c('Total RNA','Top 1%', 'Top 10%', 'Top 25%','Bottom 75%'))) %>%
@@ -303,23 +296,32 @@ p2 <- rsquare %>%
 
 fc_type_df %>% 
     filter(type=='tRNA') %>% 
-    select(id,name, type, map_type, baseMean_AB) %>% 
+    dplyr::select(id,name, type, map_type, baseMean_AB) %>% 
     spread(map_type, baseMean_AB) %>% 
     filter(is.na(Salmon))
 
 fc_type_df %>% 
     filter(type=='vaultRNA') %>% 
-    select(id,name, type, map_type, baseMean_AB) %>% 
+    dplyr::select(id,name, type, map_type, baseMean_AB) %>% 
     spread(map_type, baseMean_AB) 
 
 rmse_table <- str_c(figurepath, '/rmse_fc.csv')
 per_type_r2_df %>% 
-    select(rmse,map_type,type,analytic_type) %>%
+    dplyr::select(rmse,map_type,type,analytic_type) %>%
     spread(type, rmse) %>%
     write_csv(rmse_table)
 
+fc_type_df %>% 
+        filter(type == 'Other sncRNA') %>% 
+        ggplot(aes(x = predict, y = logFC_CD)) + 
+            stat_density2d(geom='raster', contour=F, aes(fill=..density..)) + 
+            viridis::scale_fill_viridis() + 
+            facet_grid(.~map_type) + 
+            geom_abline(color='red', slope=1, intercept= 0) + 
+            geom_smooth(method='lm', color= 'green', alpha = 0.6)
 
-quantile_length <- fc_df %>% 
+
+quantile_length_r2 <- fc_df %>% 
 #    filter(type != 'Other ncRNA') %>%
     inner_join(gene_length)  %>%
     group_by(map_type) %>%
@@ -330,7 +332,11 @@ quantile_length <- fc_df %>%
     group_by(map_type, length_tile) %>%
     summarize(
         rs = caret::R2(predict, logFC_CD, formula='traditional'),
+        rs_cor = caret::R2(predict, logFC_CD),
+        rmse = caret::RMSE(predict, logFC_CD),
         rmse = sqrt(mean(error ^ 2)),
+        uFC = mean(logFC_CD),
+        varFC = var(logFC_CD),
         samplesize=n()
     ) %>%
     ungroup %>%
@@ -342,7 +348,8 @@ quantile_length <- fc_df %>%
     )) %>%
     tbl_df
     
-length_tile_p <- ggplot(data=quantile_length, aes(x=map_type, y = rs, fill = map_type)) +
+length_tile_p <- ggplot(data=quantile_length_r2, 
+                        aes(x=map_type, y = rs, fill = map_type)) +
     geom_bar(stat='identity') +
     labs(x = 'Pipeline', y = expression('R^2'))+
     facet_grid(~length_tile_group) +
@@ -351,7 +358,7 @@ length_tile_p <- ggplot(data=quantile_length, aes(x=map_type, y = rs, fill = map
     theme(axis.text.x=element_blank()) 
 
 r2_p <- plot_grid(p2, length_tile_p, ncol=1, align = 'v',
-                  labels = c('A','B'), axis='l')
+                  labels = c('a','b'), axis='l')
 figurename <- str_c(figurepath, '/fold_change_supplementary.png')
 save_plot(r2_p , file=figurename,  base_width=10, base_height=10) 
 message('Saved: ', figurename)
@@ -359,4 +366,94 @@ message('Saved: ', figurename)
 
 quantile_length <- fc_df %>% 
     inner_join(gene_length)  %>%
-    write_feather('/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes/fc_table.feather')
+#    write_feather('/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes/fc_table.feather')
+    group_by(map_type) %>%
+    nest() %>%
+    mutate(data = map(data, ~mutate(., length_tile = ntile(gene_length, 4)))) %>%
+    unnest() %>%
+    mutate(length_tile_group = case_when(
+                        .$length_tile == 4 ~ '0-25%\n(Longest genes)',
+                        .$length_tile == 3 ~ '25-50%',
+                        .$length_tile == 2 ~ '50-75%',
+                        .$length_tile == 1 ~ '75-100%\n(Shortest genes)'
+    )) %>% 
+    filter(map_type == 'Kallisto') %>%
+    tbl_df
+    
+
+r2_df <- quantile_length_r2 %>% 
+    mutate(r2_label = round(rs,3)) %>%
+    mutate(r2_label = paste('R^2','==',r2_label)) %>%
+    mutate(rmse_label = round(rmse,3)) %>%
+    mutate(rmse_label = paste('RMSE','==',rmse_label)) %>%
+    filter(map_type == 'Kallisto') %>%
+    dplyr::select(r2_label, rmse_label, length_tile_group, map_type, rs)
+colors <- RColorBrewer::brewer.pal(8, 'Dark2')
+s_p <- ggplot() + 
+    stat_density2d(geom = "raster", 
+                    data = quantile_length %>% arrange(-length_tile),
+                    aes(x=predict, y = logFC_CD, fill = ..density..), 
+                    contour = FALSE) +
+#    geom_smooth(data = quantile_length %>% arrange(-length_tile),
+#                aes(x=predict, y = logFC_CD), method='lm', 
+#                color='purple', alpha=0.5)+
+    facet_wrap(~length_tile_group, scale='free') +
+    labs(x = 'Expected fold change CD (log2)', y = 'Measured fold change CD (log2)', 
+         color = ' ', fill = 'Density') +
+    xlim(-1,1) +
+    ylim(-1,1) +
+    geom_abline(intercept = 0, slope = 1, color = 'red', alpha=0.6) +
+    geom_text(data=r2_df, x = -0.4, y = 0.8,
+              aes(label = r2_label), face='bold', size = 7, 
+              color='white', parse=T)+
+    geom_text(data=r2_df, x = -0.4, y = 0.6,
+              aes(label = rmse_label), face='bold', size = 7, 
+              color='white', parse=T)+
+    viridis::scale_fill_viridis() +
+    panel_border()  +
+    theme(strip.text = element_text(size = 16))
+message('Plotted S curve')
+figurename <- str_c(figurepath, '/kallisto_r2_splot.png')
+save_plot(s_p, file=figurename,  base_width=8, base_height=8) 
+message('Saved: ', figurename)
+
+# 
+# abund_r2_df <- rsquare %>% 
+#     mutate(r2_label = paste('R^2','==',rs)) %>%
+#     dplyr::select(r2_label, labeling, map_type, rs) %>%
+#     mutate(labeling = factor(labeling, 
+#                              levels = rev(c('Bottom 75%','Top 25%','Top 10%','Top 1%'))))
+# abund_s_p <- ggplot(data= fc_df %>% 
+#                         mutate(labeling = factor(labeling, 
+#                             levels = rev(c('Bottom 75%','Top 25%','Top 10%','Top 1%'))))) + 
+#     stat_density2d(geom = "raster", 
+#                    #aes(x=logFC_AB, y = logFC_CD, fill = ..density..), 
+#                    aes(x=predict, y = logFC_CD, fill = ..density..), 
+#                    contour = FALSE) +
+#     facet_grid(labeling~map_type, scale='free') +
+#     labs(x = 'Expected fold change AB (log2)', y = 'Measured fold change CD (log2)', 
+#          color = ' ', fill = 'Density') +
+#     #    facet_grid(.~analytic_type+map_type) +
+#     xlim(-2.5,2.5) +
+#     ylim(-2,2) +
+#     #    geom_text(x = -7, data = rsquare, alpha=1,
+#     #              aes(y=2-ypos/5, 
+#     #                  label = paste0('R^2: ',as.character(rs)), 
+#     #                  color = labeling), parse=T, show.legend=F) +
+#     #    geom_text(x = 7, data = rsquare, alpha=1,
+#     #              aes(y=-1-ypos/5,label = paste0('n = ',samplesize), color = labeling), show.legend = F) +
+#     #geom_line(aes(x = logFC_AB, y = predict), 
+#     #          color ='red', alpha=0.6) +
+#     geom_abline(intercept = 0, slope = 1, color = 'red', alpha=0.6) +
+#     geom_text(data=abund_r2_df, x = -1, y = 1.5,
+#               aes(label = r2_label),
+#               color='white', parse=T)+
+#     viridis::scale_fill_viridis() +
+#     panel_border() 
+# 
+# supp_s_p <- plot_grid(abund_s_p, s_p, 
+#                       labels = c('a','b'), 
+#                       ncol=1)
+# figurename <- str_c(figurepath, '/fold_change_r2_splot.png')
+# save_plot(supp_s_p, file=figurename,  base_width=10, base_height=13) 
+# message('Saved: ', figurename)

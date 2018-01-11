@@ -10,6 +10,7 @@ library(tidyr)
 library(purrr)
 
 # read gene table
+figurepath <- str_c(project_path, '/figures')
 ercc_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/ercc_annotation.tsv' %>%
     read_tsv()  %>%
     mutate(group = str_c(fold,1,sep=':')) %>%
@@ -20,7 +21,7 @@ project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
 
 df <- file.path(project_path, 'DEgenes') %>%
     list.files(path=., pattern = '.feather', full.names=T) %>%
-    .[!grepl('abundance|tpm|_[0-9]+',.)] %>%
+    .[!grepl('abundance|tpm|_[0-9]+|fc_',.)] %>%
     map_df(read_feather) %>%
     gather(variable, value, -id, -map_type, - comparison) %>%
     filter(grepl('ERCC',id)) %>%
@@ -95,6 +96,7 @@ rmse_df %>%
     select(-y_coor) %>% 
     mutate(rmse = signif(rmse,3))%>% 
     spread(map_type, rmse) %>%
+    rename(`Differentially-expressed group` = group) %>%
     write_csv(error_table) 
 
 ercc_de_p<-ggplot()+
@@ -120,7 +122,7 @@ colors <- c("#E69F00", "#F0E442", "#009E73", "#56B4E9")
 error_plot <- ggplot(data=df, aes(fill = map_type, y=error, x = group)) +
     geom_violin()+
     labs(y =  expression(paste(Delta~'log2(fold change)')), 
-         x = 'Designed ERCC differentially-expressed group (Sample B: Sample A)', 
+         x = 'Expected ERCC differentially-expressed group (Sample B: Sample A)', 
          fill = ' ') +
     geom_hline(yintercept = 0, linetype=2, alpha=0.6) + 
     scale_fill_manual(values=colors)
