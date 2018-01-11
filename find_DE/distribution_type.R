@@ -314,46 +314,6 @@ figurename <- file.path(figurepath , 'genes_correlations.pdf')
 ggsave(cor_p, file = figurename, width = 13, height=8)
 
 
-#colors <- RColorBrewer::brewer.pal(12,'Paired')
-#colors <- c(colors,'darkgrey')
-#samples <- merge_df %>% .$samplename %>% str_replace(.,'_[123]','') %>% unique
-#for (sample_type in samples){
-#    figurename <- str_c(figurepath, '/pair_type',sample_type,'.png')
-#    png(figurename,width = 18, height = 16, unit='in', res=200)
-#    matrix_df <- merge_df %>%
-#        filter(grepl(sample_type,samplename)) %>%
-#        filter(abundance > 0.1) %>%
-#        group_by(map_type, id, type) %>%
-#        summarize(abundance = mean(log2(abundance))) %>%
-#         ungroup()  %>%
-#         mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',map_type),1,2)) %>%
-#         mutate(map_type = forcats::fct_reorder(map_type, pipeline_type)) %>%
-#         select(-pipeline_type) %>%
-#         spread(map_type, abundance, drop=T) %>%
-#         inner_join(tbl_df(.) %>%
-#                    group_by(type) %>%
-#                    summarize(count=n())
-#         ) %>%
-#         mutate(type = str_c(type, ' (n=', count,')')) %>%
-#         select(-id, -count)    %>%
-#         set_names(make.names(names(.)))
-#     p <- ggpairs(matrix_df,
-#                 columns = names(matrix_df%>%select(-type)),
-#                 aes(alpha=0.7,color = type), xlab='log2(TPM)', ylab='log2(TPM)') 
-#     for (i in 1:p$nrow){
-#         for (j in 1:p$ncol){
-#             if (i!=j){
-#                 p[i,j] = p[i,j] + scale_color_manual(values=colors)
-#             }else{
-#                 p[i,j] = p[i,j] + scale_fill_manual(values=colors)
-#             }
-#         }
-#     }
-#     print(p)
-#     dev.off()
-#     message('Plotted: ', figurename)
-# }
-
 quantile_group <- rev(c('0-25%','26-50%','51-75%','76-100%'))
 spreaded_df <-merge_df %>%
     mutate(samplename = str_replace(samplename,'_[1-3]$','')) %>%
@@ -471,58 +431,6 @@ figurename <- str_c(figurepath, '/cor_line_plots.pdf')
 ggsave(cor_lines, file = figurename, width=8, height=10)
 message('Plotted: ', figurename)
 
-# 
-# plot_venn <- function(which_sample,d){
-#     colors <- gg_color_hue(4)
-#     plot_df <- d %>% filter(samplename == which_sample)
-#     samples <- plot_df %>% filter(!grepl(',',maps)) %>% .$maps %>%unique
-#     sample_1 <- samples[1]
-#     sample_2 <- samples[2]
-#     sample_3 <- samples[3]
-#     sample_4 <- samples[4]
-# 
-#     figurename <- str_c(figurepath,'/venn_gene_',which_sample,'.pdf')
-#     figurename <- str_replace_all(figurename,' ','_')
-#     pdf(figurename, width = 15, height=10)
-#     venn.plot <- draw.quad.venn(
-#                 area1 = filter(plot_df, grepl(sample_1,maps, fixed=T))$number_of_genes %>% sum,
-#                 area2 = filter(plot_df, grepl(sample_2,maps, fixed=T))$number_of_genes %>% sum,
-#                 area3 = filter(plot_df, grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
-#                 area4 = filter(plot_df, grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
-# 
-#                 n12 = filter(plot_df, grepl(sample_1,maps, fixed=T), grepl(sample_2,maps, fixed=T))$number_of_genes %>% sum,
-#                 n13 = filter(plot_df, grepl(sample_1,maps, fixed=T), grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
-#                 n14 = filter(plot_df, grepl(sample_1,maps, fixed=T), grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
-#                 n23 = filter(plot_df, grepl(sample_2,maps, fixed=T), grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
-#                 n24 = filter(plot_df, grepl(sample_2,maps, fixed=T), grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
-#                 n34 = filter(plot_df, grepl(sample_3,maps, fixed=T), grepl(sample_4,maps, fixed=T))$number_of_genes %>% sum,
-# 
-#                 n123 = filter(plot_df, grepl(sample_1,maps, fixed=T),
-#                               grepl(sample_2,maps, fixed=T), grepl(sample_3,maps, fixed=T))$number_of_genes %>% sum,
-#                 n124 = filter(plot_df, grepl(sample_1,maps, fixed=T),
-#                               grepl(sample_2,maps, fixed=T), grepl(sample_4, maps, fixed=T))$number_of_genes %>% sum,
-#                 n134 = filter(plot_df, grepl(sample_1,maps, fixed=T),
-#                               grepl(sample_3,maps, fixed=T), grepl(sample_4, maps, fixed=T))$number_of_genes %>% sum,
-#                 n234 = filter(plot_df, grepl(sample_2,maps, fixed=T),
-#                               grepl(sample_3,maps, fixed=T), grepl(sample_4, maps, fixed=T))$number_of_genes %>% sum,
-# 
-#                 n1234 = filter(plot_df, maps == str_c(sample_1, sample_2,
-#                                                       sample_3, sample_4,sep=','))$number_of_genes %>% sum,
-#                 category = samples,
-#                 fill = colors,
-#                 lty = "dashed",
-#                 cex = 1.5, cat.cex = 1.5,
-#                 cat.col = colors)
-#     dev.off()
-#     message('Plotted: ', figurename)
-# }
-# 
-# gg_color_hue <- function(n) {
-#     hues = seq(15, 375, length = n + 1)
-#     hcl(h = hues, l = 65, c = 100)[1:n]
-# }
-
-
 venn_Df <- merge_df %>% 
     mutate(samplename = str_replace(samplename,'_[1-3]$','')) %>%
     group_by(samplename, id, name, type, map_type) %>%
@@ -546,12 +454,6 @@ sep_p <- venn_Df %>%
     group_by(maps,type,samplename) %>% 
     summarize(count = n()) %>% 
     ungroup() %>% 
-#    group_by(maps,samplename) %>% 
-#    do(data_frame(
-#            type = .$type, 
-#            count = .$count/sum(.$count)*100
-#            )
-#    ) %>%  
     filter(!grepl(',',maps)) %>%
     mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',maps),1,2)) %>%
     mutate(maps = forcats::fct_reorder(maps, pipeline_type)) %>%
@@ -570,8 +472,6 @@ venn_Df<-venn_Df %>%
     group_by(maps, samplename) %>% 
     summarize(number_of_genes = n()) %>%
     ungroup()
-
-#ps <- lapply(venn_Df$samplename%>%unique,plot_venn, venn_Df)
 
 gene_count_df <- merge_df %>% 
     filter(abundance > 0.1) %>%
