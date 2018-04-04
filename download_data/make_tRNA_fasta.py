@@ -4,6 +4,7 @@ from Bio import SeqIO
 import re
 from collections import defaultdict
 import sys
+import six
 
 if len(sys.argv) != 2:
     sys.exit()
@@ -17,7 +18,7 @@ with open(info_table, 'r') as info:
         tRNA_id = re.sub('-[0-9]$','', fields[-2])
         tRNA_name = 'Homo_sapiens_' + fields[-1]
         name_dict[tRNA_name] = tRNA_id
-print 'made tRNA name hash table'
+print('made tRNA name hash table', file=sys.stderr)
 
 
 fasta_file = ref_path + '/hg38-tRNAs.fa'
@@ -29,14 +30,18 @@ with open(fasta_file, 'r') as fasta:
         sequence = str(record.seq)
         sequence = re.sub('[actgn]','', sequence)
         name = record.id
-        seq_id = name_dict[name]
+        try:
+            seq_id = name_dict[name]
+        except KeyError:
+            seq_id = name_dict['Homo_sapiens_tRNA-Leu-CAA-6-1']
+            seq_id = seq_id.replace('-6','-5')
         sequence_set = out_seq[seq_id]
         if sequence not in sequence_set:
             number = len(sequence_set) + 1
-            print '>%s-%i\n%sCCAA' %(seq_id, number, sequence)
+            print('>%s-%i\n%sCCAA' %(seq_id, number, sequence))
             out_seq[seq_id].add(sequence)
 
-for key, seqs in out_seq.iteritems():
+for key, seqs in six.iteritems(out_seq):
     diff_seq = len(list(seqs))
     if diff_seq > 1:
-        sys.stderr.write('%s have %i sequences\n' %(key, diff_seq))
+        print('%s have %i sequences' %(key, diff_seq), file = sys.stderr)

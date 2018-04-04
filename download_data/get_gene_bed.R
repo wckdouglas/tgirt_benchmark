@@ -7,7 +7,9 @@ library(purrr)
 
 args<-commandArgs(TRUE)
 out_bed_name <- args[1]
-ensembl <- useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", version=78)
+ensembl <- useEnsembl(biomart="ensembl", 
+                      dataset="hsapiens_gene_ensembl",
+                      GRCh=38)#, version=78)
 bed_fields <- c('chromosome_name',
                 'start_position',
                 'end_position',
@@ -16,7 +18,7 @@ bed_fields <- c('chromosome_name',
                 'gene_biotype',
                 'ensembl_gene_id')
 listMarts(ensembl)
-getBM(attributes = bed_fields, mart = ensembl) %>%
+bed <- getBM(attributes = bed_fields, mart = ensembl) %>%
     set_names(c('chrom','start','end',
                 'name','strand','biotype',
                 'id')) %>%
