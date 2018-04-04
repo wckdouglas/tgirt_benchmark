@@ -8,7 +8,8 @@ mkdir -p $TRANSCRIPTOME $GENOME_PATH
 #URLs for reference
 ENSEMBL_TRANSCRIPT=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
 ENSEMBL_NON_CODING=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/ncrna/Homo_sapiens.GRCh38.ncrna.fa.gz
-ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.chr_patch_hapl_scaff.gtf.gz
+#ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.chr_patch_hapl_scaff.gtf.gz
+ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.gtf.gz
 HUMAN_REF_URL=ftp://ftp.ensembl.org/pub/release-88/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 ERCC_annotation=https://tools.thermofisher.com/content/sfs/manuals/cms_095046.txt
 ERCC_SEQUENCE=https://tools.thermofisher.com/content/sfs/manuals/cms_095047.txt
@@ -16,6 +17,13 @@ GTRNA=http://gtrnadb.ucsc.edu/GtRNAdb2/genomes/eukaryota/Hsapi38/hg38-tRNAs.tar.
 
 ### Download genome ref
 #curl $HUMAN_REF_URL > $GENOME_PATH/reference.fa.gz
+
+## Download GTF and append tRNA, rRNA, ERCC bed record
+GENES_GTF=$GENOME_PATH/genes.gtf
+curl $ENSEMBL_GTF  \
+	| zcat \
+	| grep -v 'gene_biotype "TEC"' \
+	> $GENES_GTF
 
 #Download rRNA
 python get_rRNA_fa.py > $TRANSCRIPTOME/rRNA.fa
@@ -40,10 +48,10 @@ cat $TRANSCRIPTOME/ercc.fa \
 echo 'Made ERCC'
 
 ####MAKE hisat2 index
-zcat $GENOME_PATH/reference.fa.gz \
-    | cat - $TRANSCRIPTOME/ercc.fa $TRANSCRIPTOME/rRNA.fa \
-> $GENOME_PATH/reference.fa
-samtools faidx $GENOME_PATH/reference.fa
+#zcat $GENOME_PATH/reference.fa.gz \
+#    | cat - $TRANSCRIPTOME/ercc.fa $TRANSCRIPTOME/rRNA.fa \
+#> $GENOME_PATH/reference.fa
+#samtools faidx $GENOME_PATH/reference.fa
 #hisat2-build $GENOME_PATH/reference.fa $GENOME_PATH/reference
 #bowtie2-build $GENOME_PATH/reference.fa $GENOME_PATH/reference
 hisat2_extract_splice_sites.py $GENOME_PATH/genes.gtf > $GENOME_PATH/splicesite.tsv  
@@ -99,12 +107,7 @@ echo 'Made transcript table'
 bowtie2-build $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/tRNA
 bowtie2-build $TRANSCRIPTOME/rRNA.fa $TRANSCRIPTOME/rRNA
 
-## Download GTF and append tRNA, rRNA, ERCC bed record
-GENES_GTF=$GENOME_PATH/genes.gtf
-curl $ENSEMBL_GTF  \
-	| zcat \
-	| grep -v 'gene_biotype "TEC"' \
-	> $GENES_GTF
+## Append rRNA/rRNA/ERCC coordinate to GTF
 python bed_to_gtf.py $TRANSCRIPTOME/rRNA.bed >> $GENES_GTF
 python bed_to_gtf.py $TRANSCRIPTOME/ercc.bed >> $GENES_GTF
 python bed_to_gtf.py $TRANSCRIPTOME/tRNA.bed >> $GENES_GTF
