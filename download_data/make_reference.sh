@@ -99,22 +99,23 @@ echo 'Made genes.bed'
 #bedtools getfasta -s -fi $TRANSCRIPTOME/rRNA.fa -bed $TRANSCRIPTOME/rRNA.bed -name > $TRANSCRIPTOME/rDNA.fa
 #zcat $TRANSCRIPTOME/ensembl_cDNA.fa.gz \
 #		$TRANSCRIPTOME/ensembl_ncrna.fa.gz \
+#	| python correct_transcriptome_id.py \
+#	| tee $TRANSCRIPTOME/ensembl_transcripts.fa \
+#	| cat - $tRNA_PATH/nucleo_tRNA.fa $TRANSCRIPTOME/rDNA.fa $TRANSCRIPTOME/ercc.fa \
 gffread $GENES_GTF -g $GENOME_PATH/reference.fa -w - \
-	| python correct_transcriptome_id.py \
-	| tee $TRANSCRIPTOME/ensembl_transcripts.fa \
-	| cat - $tRNA_PATH/nucleo_tRNA.fa $TRANSCRIPTOME/rDNA.fa $TRANSCRIPTOME/ercc.fa \
+    | seqtk seq \
 	> $TRANSCRIPTOME/whole_transcriptome.fa
 samtools faidx $TRANSCRIPTOME/whole_transcriptome.fa
 echo 'Made transcriptome fasta'
 
 ## make transcript table
-OUT_FILE=$TRANSCRIPTOME/transcripts.tsv
-cat $TRANSCRIPTOME/ensembl_transcripts.fa \
-	| python transcript_table_from_fa.py > $OUT_FILE
-awk '{print $1,$1,$1,"ERCC"}' OFS='\t' $TRANSCRIPTOME/ercc.bed >> $OUT_FILE
-python rRNA_transcript_to_gene.py $TRANSCRIPTOME/rDNA.fa >> $OUT_FILE
-python tRNA_transcript_to_gene.py $TRANSCRIPTOME/tRNA.fa >> $OUT_FILE
-echo 'Made transcript table'
+#OUT_FILE=$TRANSCRIPTOME/transcripts.tsv
+#cat $TRANSCRIPTOME/ensembl_transcripts.fa \
+#	| python transcript_table_from_fa.py > $OUT_FILE
+#awk '{print $1,$1,$1,"ERCC"}' OFS='\t' $TRANSCRIPTOME/ercc.bed >> $OUT_FILE
+#python rRNA_transcript_to_gene.py $TRANSCRIPTOME/rDNA.fa >> $OUT_FILE
+#python tRNA_transcript_to_gene.py $TRANSCRIPTOME/tRNA.fa >> $OUT_FILE
+#echo 'Made transcript table'
 
 bowtie2-build $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/tRNA
 bowtie2-build $TRANSCRIPTOME/rRNA.fa $TRANSCRIPTOME/rRNA
