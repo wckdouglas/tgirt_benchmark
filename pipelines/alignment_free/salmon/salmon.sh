@@ -1,12 +1,13 @@
 #!/bin/bash
 
-DATAPATH=${SCRATCH}/bench_marking/genome_mapping/Trim
-INDEX_PATH=${REF}/benchmarking/human_transcriptome
+DATAPATH=${SCRATCH}/bench_marking/genome_mapping/tgirt_map/Trim
+REF_PATH=$SCRATCH/ref/benchmarking_new
+INDEX_PATH=${REF_PATH}/benchmarking/human_transcriptome
 INDEX=${INDEX_PATH}/transcript_salmon
 RESULTPATH=${SCRATCH}/bench_marking/alignment_free/salmon
 COUNT_PATH=${RESULTPATH}/countFiles
 BAM_PATH=${RESULTPATH}/bamFiles
-THREADS=24
+THREADS=3
 mkdir -p ${COUNT_PATH} ${BAM_PATH}
 
 for R1 in ${DATAPATH}/*.1.fq.gz

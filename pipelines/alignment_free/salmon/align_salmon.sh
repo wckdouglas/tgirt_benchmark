@@ -27,10 +27,10 @@ do
             --seqBias --gcBias \
             --libType ISF \
             --targets $TRANSCRIPTOME_FASTA \
-            --writeMappings  \
             --threads=${THREADS} \
             --auxDir ${RESULTPATH}/${SAMPLENAME} \
             --numBootstraps 100 \
+            --useErrorModel  \
             --alignments $BAM_FILE \
             --output ${RESULTPATH}/${SAMPLENAME} 
 done
