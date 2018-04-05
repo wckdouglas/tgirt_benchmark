@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 
-
+from __future__ import print_function
 import pandas as pd
 import sys
 
@@ -28,7 +28,7 @@ def filter_bed(type_pattern, filename):
     else:
         gene_bed[~gene_bed.bio_type.str.contains(type_pattern)] \
             .to_csv(bed_file_name, header=False, index=False, sep='\t')
-    print 'Written: ', bed_file_name
+    print('Written: ', bed_file_name)
 
 patterns = ['miRNA|misc_RNA|snoRNA|snRNA',
               'protein_coding',

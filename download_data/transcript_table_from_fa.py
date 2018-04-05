@@ -4,11 +4,12 @@
 convert ensemble fasta headers to transcript table
 '''
 
+from __future__ import print_function
 import sys
 import re
 import fileinput
 
-print 'gene_id\tname\tt_id\ttype'
+print('gene_id\tname\tt_id\ttype')
 for line in fileinput.input():
     if line.startswith('>'):
         fields = line.lstrip('>').rstrip('\n').split(' ')
@@ -26,4 +27,4 @@ for line in fileinput.input():
                 name = '5S_rRNA'
             if '5_8S_r' in name or '5-8S' in name:
                 name = '5.8S_rRNA'
-        print '\t'.join([gene_id, name, tid, type])
+        print('\t'.join([gene_id, name, tid, type]))

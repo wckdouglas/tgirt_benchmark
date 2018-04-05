@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-
+from __future__ import print_function
 import pandas as pd
 import os, sys
 import re
@@ -98,4 +98,4 @@ df = t_tab.merge(bed, how='outer', on ='gene_id') \
     .drop(['gene_name','gene_type'], axis=1) 
 union_gene = gene_path + '/all_genes.tsv'
 df.to_csv(union_gene, index=False, sep='\t')
-print 'Written %s' %union_gene
+print('Written %s' %union_gene)

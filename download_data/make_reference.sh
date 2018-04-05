@@ -27,6 +27,7 @@ curl $ENSEMBL_GTF  \
 
 #Download rRNA
 python get_rRNA_fa.py > $TRANSCRIPTOME/rRNA.fa
+samtools faidx $TRANSCRIPTOME/rRNA.fa
 echo 'gi|23898|emb|X12811.1|  274     394     5S_rRNA 0       +       5S_rRNA 5S_rRNA
 gi|555853|gb|U13369.1|HSU13369  3657    5527    18S_rRNA        0       +       18S_rRNA        18S_rRNA
 gi|555853|gb|U13369.1|HSU13369  6623    6779    5.8S_rRNA       0       +       5.8S_rRNA       5.8S_rRNA

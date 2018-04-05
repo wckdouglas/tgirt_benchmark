@@ -89,7 +89,10 @@ def get_table(url, name):
         .assign(tRNA_name = lambda d: d.tRNA_id.str.replace('[0-9]+-[0-9]+$','')) \
         .assign(type = 'tRNA') \
         .pipe(lambda d: d[['chrom','start', 'end', 'tRNA_name',
-                           'score','strand','type','tRNA_id','GtRNAdb Gene Symbol']])
+                           'score','strand','type','tRNA_id','GtRNAdb Gene Symbol']]) \
+        .assign(chrom = lambda d: np.where(d.chrom == "1_KI270713v1_random",
+                                           'KI270713.1',
+                                           d.chrom))
 
 #        .assign(tRNA_id = lambda d: map(add_nm_tRNA, d.tRNA_id, d.tRNA_name))
     df.to_csv(tab_name,sep='\t',index=False)

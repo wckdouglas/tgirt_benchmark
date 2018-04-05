@@ -7,6 +7,7 @@ an example: ENST00000290239.7
 For the second time this appears, I will add a .1 at the back of the id
 '''
 
+from __future__ import print_function
 from Bio import SeqIO
 import sys
 
@@ -19,4 +20,4 @@ for record in fasta_generator:
         id = record.id + '.1'
     ids.add(id)
     description = ' '.join(record.description.split(' ')[1:]) 
-    print '>%s %s\n%s' %(id, description, record.seq)
+    print('>%s %s\n%s' %(id, description, record.seq))
