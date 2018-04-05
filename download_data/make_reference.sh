@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 
 REF_PATH=${REF}/benchmarking
 TRANSCRIPTOME=$REF_PATH/human_transcriptome
@@ -59,10 +60,9 @@ hisat2_extract_splice_sites.py $GENOME_PATH/genes.gtf > $GENOME_PATH/splicesite.
 echo 'Made genome'
 
 #download gene annotation
-Rscript get_gene_bed.R $TRANSCRIPTOME/genes.bed
-cat $TRANSCRIPTOME/rRNA.bed >> $TRANSCRIPTOME/genes.bed
-cat $TRANSCRIPTOME/ercc.bed >> $TRANSCRIPTOME/genes.bed
-echo 'Made genes.bed'
+#Rscript get_gene_bed.R $TRANSCRIPTOME/genes.bed
+#cat $TRANSCRIPTOME/rRNA.bed >> $TRANSCRIPTOME/genes.bed
+#cat $TRANSCRIPTOME/ercc.bed >> $TRANSCRIPTOME/genes.bed
 
 #download tRNA
 tRNA_PATH=$TRANSCRIPTOME/tRNA
@@ -82,13 +82,24 @@ cat $TRANSCRIPTOME/genes.bed \
 echo 'Finished making tRNA'
 cat $tRNA_PATH/mt_tRNA.fa $tRNA_PATH/nucleo_tRNA.fa > $TRANSCRIPTOME/tRNA.fa
 
+## Append rRNA/rRNA/ERCC coordinate to GTF
+python bed_to_gtf.py $TRANSCRIPTOME/rRNA.bed >> $GENES_GTF
+python bed_to_gtf.py $TRANSCRIPTOME/ercc.bed >> $GENES_GTF
+python bed_to_gtf.py $TRANSCRIPTOME/tRNA.bed >> $GENES_GTF
+echo 'Made gtf'
+
+
+#make gene bed
+python gtf_to_bed.py $GENES_GTF  > $TRANSCRIPTOME/genes.bed
+echo 'Made genes.bed'
 
 #Download transcripts and merge tRNA, ercc, rDNA
-curl $ENSEMBL_TRANSCRIPT > $TRANSCRIPTOME/ensembl_cDNA.fa.gz
-curl $ENSEMBL_NON_CODING > $TRANSCRIPTOME/ensembl_ncrna.fa.gz
-bedtools getfasta -s -fi $TRANSCRIPTOME/rRNA.fa -bed $TRANSCRIPTOME/rRNA.bed -name > $TRANSCRIPTOME/rDNA.fa
-zcat $TRANSCRIPTOME/ensembl_cDNA.fa.gz \
-		$TRANSCRIPTOME/ensembl_ncrna.fa.gz \
+#curl $ENSEMBL_TRANSCRIPT > $TRANSCRIPTOME/ensembl_cDNA.fa.gz
+#curl $ENSEMBL_NON_CODING > $TRANSCRIPTOME/ensembl_ncrna.fa.gz
+#bedtools getfasta -s -fi $TRANSCRIPTOME/rRNA.fa -bed $TRANSCRIPTOME/rRNA.bed -name > $TRANSCRIPTOME/rDNA.fa
+#zcat $TRANSCRIPTOME/ensembl_cDNA.fa.gz \
+#		$TRANSCRIPTOME/ensembl_ncrna.fa.gz \
+gffread $GENES_GTF -g $GENOME_PATH/reference.fa -w - \
 	| python correct_transcriptome_id.py \
 	| tee $TRANSCRIPTOME/ensembl_transcripts.fa \
 	| cat - $tRNA_PATH/nucleo_tRNA.fa $TRANSCRIPTOME/rDNA.fa $TRANSCRIPTOME/ercc.fa \
@@ -107,12 +118,8 @@ echo 'Made transcript table'
 
 bowtie2-build $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/tRNA
 bowtie2-build $TRANSCRIPTOME/rRNA.fa $TRANSCRIPTOME/rRNA
+bowtie2-build $TRANSCRIPTOME/whole_transcriptome.fa $TRANSCRIPTOME/whole_transcriptome
 
-## Append rRNA/rRNA/ERCC coordinate to GTF
-python bed_to_gtf.py $TRANSCRIPTOME/rRNA.bed >> $GENES_GTF
-python bed_to_gtf.py $TRANSCRIPTOME/ercc.bed >> $GENES_GTF
-python bed_to_gtf.py $TRANSCRIPTOME/tRNA.bed >> $GENES_GTF
-echo 'Made gtf'
 	
 #for genome count 
 SAF_FILE=$TRANSCRIPTOME/genes.SAF

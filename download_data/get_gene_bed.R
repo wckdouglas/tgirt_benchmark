@@ -9,7 +9,7 @@ args<-commandArgs(TRUE)
 out_bed_name <- args[1]
 ensembl <- useEnsembl(biomart="ensembl", 
                       dataset="hsapiens_gene_ensembl",
-                      GRCh=38)#, version=78)
+                      GRCh=38)
 bed_fields <- c('chromosome_name',
                 'start_position',
                 'end_position',
