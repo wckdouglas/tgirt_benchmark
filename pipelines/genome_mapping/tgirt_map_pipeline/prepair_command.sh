@@ -3,17 +3,15 @@
 PROJECT_PATH=${SCRATCH}/bench_marking
 DATAPATH=${PROJECT_PATH}/data
 RESULT_PATH=${PROJECT_PATH}/genome_mapping/tgirt_map
-
-
-DATAPATH=/stor/work/Lambowitz/Data/NGS/Matt
-RESULT_PATH=$DATAPATH/results
-HUMAN_INDEX=${REF}/benchmarking/GRCH38_genome/reference  # GRCh38 hisat2 index 
-BED_PATH=${REF}/benchmarking/human_transcriptome  #bed file GRCh38
-tRNA_INDEX=${REF}/benchmarking/human_transcriptome/tRNA #tRNA with mtTRNA and cytosolic tRNA
-rRNA_INDEX=${REF}/benchmarking/human_transcriptome/rRNA #tRNA with mtTRNA and cytosolic tRNA
-trRNA_INDEX=${REF}/benchmarking/human_transcriptome/tRNA_rRNA #tRNA with mtTRNA and cytosolic tRNA
-SPLICE_FILE=${REF}/benchmarking/GRCH38_genome/splicesite.txt
+REF_PATH=$SCRATCH/ref/benchmarking_new
+HUMAN_INDEX=${REF_PATH}/benchmarking/GRCH38_genome/reference  # GRCh38 hisat2 index 
+BED_PATH=${REF_PATH}/benchmarking/human_transcriptome  #bed file GRCh38
+tRNA_INDEX=${REF_PATH}/benchmarking/human_transcriptome/tRNA #tRNA with mtTRNA and cytosolic tRNA
+rRNA_INDEX=${REF_PATH}/benchmarking/human_transcriptome/rRNA #tRNA with mtTRNA and cytosolic tRNA
+trRNA_INDEX=${REF_PATH}/benchmarking/human_transcriptome/tRNA_rRNA #tRNA with mtTRNA and cytosolic tRNA
+SPLICE_FILE=${REF_PATH}/benchmarking/GRCH38_genome/splicesite.txt
 THREADS=24
+mkdir -p $RESULT_PATH
 
 for FQ1 in ${DATAPATH}/*R1_001.fastq.gz
 do
