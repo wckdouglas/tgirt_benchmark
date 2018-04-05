@@ -102,8 +102,11 @@ echo 'Made genes.bed'
 #	| python correct_transcriptome_id.py \
 #	| tee $TRANSCRIPTOME/ensembl_transcripts.fa \
 #	| cat - $tRNA_PATH/nucleo_tRNA.fa $TRANSCRIPTOME/rDNA.fa $TRANSCRIPTOME/ercc.fa \
-gffread $GENES_GTF -g $GENOME_PATH/reference.fa -w - \
+cat $GENES_GTF \
+    | grep -v '"tRNA"'\
+    | gffread -g $GENOME_PATH/reference.fa -w - \
     | seqtk seq \
+    | cat - $TRANSCRIPTOME/tRNA.fa \
 	> $TRANSCRIPTOME/whole_transcriptome.fa
 samtools faidx $TRANSCRIPTOME/whole_transcriptome.fa
 echo 'Made transcriptome fasta'
