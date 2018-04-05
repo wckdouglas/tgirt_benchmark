@@ -1,6 +1,6 @@
 #!/bin/bash
 
-DATAPATH=${SCRATCH}/bench_marking/genome_mapping/Trim
+DATAPATH=${SCRATCH}/bench_marking/genome_mapping/tgirt_map/Trim
 REF_PATH=${SCRATCH}/ref/benchmarking_new
 INDEX_PATH=${REF_PATH}/benchmarking/human_transcriptome
 TRANSCRIPTOME_INDEX=$INDEX_PATH/whole_transcriptome
