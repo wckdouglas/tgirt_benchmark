@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 
 REF_PATH=${REF}/benchmarking
 TRANSCRIPTOME=$REF_PATH/human_transcriptome
@@ -8,7 +9,8 @@ mkdir -p $TRANSCRIPTOME $GENOME_PATH
 #URLs for reference
 ENSEMBL_TRANSCRIPT=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
 ENSEMBL_NON_CODING=ftp://ftp.ensembl.org/pub/release-87/fasta/homo_sapiens/ncrna/Homo_sapiens.GRCh38.ncrna.fa.gz
-ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.chr_patch_hapl_scaff.gtf.gz
+#ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.chr_patch_hapl_scaff.gtf.gz
+ENSEMBL_GTF=ftp://ftp.ensembl.org/pub/release-88/gtf/homo_sapiens/Homo_sapiens.GRCh38.88.gtf.gz
 HUMAN_REF_URL=ftp://ftp.ensembl.org/pub/release-88/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 ERCC_annotation=https://tools.thermofisher.com/content/sfs/manuals/cms_095046.txt
 ERCC_SEQUENCE=https://tools.thermofisher.com/content/sfs/manuals/cms_095047.txt
@@ -17,8 +19,16 @@ GTRNA=http://gtrnadb.ucsc.edu/GtRNAdb2/genomes/eukaryota/Hsapi38/hg38-tRNAs.tar.
 ### Download genome ref
 #curl $HUMAN_REF_URL > $GENOME_PATH/reference.fa.gz
 
+## Download GTF and append tRNA, rRNA, ERCC bed record
+GENES_GTF=$GENOME_PATH/genes.gtf
+curl $ENSEMBL_GTF  \
+	| zcat \
+	| grep -v 'gene_biotype "TEC"' \
+	> $GENES_GTF
+
 #Download rRNA
 python get_rRNA_fa.py > $TRANSCRIPTOME/rRNA.fa
+samtools faidx $TRANSCRIPTOME/rRNA.fa
 echo 'gi|23898|emb|X12811.1|  274     394     5S_rRNA 0       +       5S_rRNA 5S_rRNA
 gi|555853|gb|U13369.1|HSU13369  3657    5527    18S_rRNA        0       +       18S_rRNA        18S_rRNA
 gi|555853|gb|U13369.1|HSU13369  6623    6779    5.8S_rRNA       0       +       5.8S_rRNA       5.8S_rRNA
@@ -40,20 +50,19 @@ cat $TRANSCRIPTOME/ercc.fa \
 echo 'Made ERCC'
 
 ####MAKE hisat2 index
-zcat $GENOME_PATH/reference.fa.gz \
-    | cat - $TRANSCRIPTOME/ercc.fa $TRANSCRIPTOME/rRNA.fa \
-> $GENOME_PATH/reference.fa
-samtools faidx $GENOME_PATH/reference.fa
+#zcat $GENOME_PATH/reference.fa.gz \
+#    | cat - $TRANSCRIPTOME/ercc.fa $TRANSCRIPTOME/rRNA.fa \
+#> $GENOME_PATH/reference.fa
+#samtools faidx $GENOME_PATH/reference.fa
 #hisat2-build $GENOME_PATH/reference.fa $GENOME_PATH/reference
 #bowtie2-build $GENOME_PATH/reference.fa $GENOME_PATH/reference
 hisat2_extract_splice_sites.py $GENOME_PATH/genes.gtf > $GENOME_PATH/splicesite.tsv  
 echo 'Made genome'
 
 #download gene annotation
-Rscript get_gene_bed.R $TRANSCRIPTOME/genes.bed
-cat $TRANSCRIPTOME/rRNA.bed >> $TRANSCRIPTOME/genes.bed
-cat $TRANSCRIPTOME/ercc.bed >> $TRANSCRIPTOME/genes.bed
-echo 'Made genes.bed'
+#Rscript get_gene_bed.R $TRANSCRIPTOME/genes.bed
+#cat $TRANSCRIPTOME/rRNA.bed >> $TRANSCRIPTOME/genes.bed
+#cat $TRANSCRIPTOME/ercc.bed >> $TRANSCRIPTOME/genes.bed
 
 #download tRNA
 tRNA_PATH=$TRANSCRIPTOME/tRNA
@@ -73,42 +82,45 @@ cat $TRANSCRIPTOME/genes.bed \
 echo 'Finished making tRNA'
 cat $tRNA_PATH/mt_tRNA.fa $tRNA_PATH/nucleo_tRNA.fa > $TRANSCRIPTOME/tRNA.fa
 
+## Append rRNA/rRNA/ERCC coordinate to GTF
+python bed_to_gtf.py $TRANSCRIPTOME/rRNA.bed >> $GENES_GTF
+python bed_to_gtf.py $TRANSCRIPTOME/ercc.bed >> $GENES_GTF
+python bed_to_gtf.py $TRANSCRIPTOME/tRNA.bed >> $GENES_GTF
+echo 'Made gtf'
+
+
+#make gene bed
+python gtf_to_bed.py $GENES_GTF  > $TRANSCRIPTOME/genes.bed
+echo 'Made genes.bed'
 
 #Download transcripts and merge tRNA, ercc, rDNA
-curl $ENSEMBL_TRANSCRIPT > $TRANSCRIPTOME/ensembl_cDNA.fa.gz
-curl $ENSEMBL_NON_CODING > $TRANSCRIPTOME/ensembl_ncrna.fa.gz
-bedtools getfasta -s -fi $TRANSCRIPTOME/rRNA.fa -bed $TRANSCRIPTOME/rRNA.bed -name > $TRANSCRIPTOME/rDNA.fa
-zcat $TRANSCRIPTOME/ensembl_cDNA.fa.gz \
-		$TRANSCRIPTOME/ensembl_ncrna.fa.gz \
-	| python correct_transcriptome_id.py \
-	| tee $TRANSCRIPTOME/ensembl_transcripts.fa \
-	| cat - $tRNA_PATH/nucleo_tRNA.fa $TRANSCRIPTOME/rDNA.fa $TRANSCRIPTOME/ercc.fa \
+#curl $ENSEMBL_TRANSCRIPT > $TRANSCRIPTOME/ensembl_cDNA.fa.gz
+#curl $ENSEMBL_NON_CODING > $TRANSCRIPTOME/ensembl_ncrna.fa.gz
+#bedtools getfasta -s -fi $TRANSCRIPTOME/rRNA.fa -bed $TRANSCRIPTOME/rRNA.bed -name > $TRANSCRIPTOME/rDNA.fa
+#zcat $TRANSCRIPTOME/ensembl_cDNA.fa.gz \
+#		$TRANSCRIPTOME/ensembl_ncrna.fa.gz \
+#	| python correct_transcriptome_id.py \
+#	| tee $TRANSCRIPTOME/ensembl_transcripts.fa \
+#	| cat - $tRNA_PATH/nucleo_tRNA.fa $TRANSCRIPTOME/rDNA.fa $TRANSCRIPTOME/ercc.fa \
+gffread $GENES_GTF -g $GENOME_PATH/reference.fa -w - \
+    | seqtk seq \
 	> $TRANSCRIPTOME/whole_transcriptome.fa
 samtools faidx $TRANSCRIPTOME/whole_transcriptome.fa
 echo 'Made transcriptome fasta'
 
 ## make transcript table
-OUT_FILE=$TRANSCRIPTOME/transcripts.tsv
-cat $TRANSCRIPTOME/ensembl_transcripts.fa \
-	| python transcript_table_from_fa.py > $OUT_FILE
-awk '{print $1,$1,$1,"ERCC"}' OFS='\t' $TRANSCRIPTOME/ercc.bed >> $OUT_FILE
-python rRNA_transcript_to_gene.py $TRANSCRIPTOME/rDNA.fa >> $OUT_FILE
-python tRNA_transcript_to_gene.py $TRANSCRIPTOME/tRNA.fa >> $OUT_FILE
-echo 'Made transcript table'
+#OUT_FILE=$TRANSCRIPTOME/transcripts.tsv
+#cat $TRANSCRIPTOME/ensembl_transcripts.fa \
+#	| python transcript_table_from_fa.py > $OUT_FILE
+#awk '{print $1,$1,$1,"ERCC"}' OFS='\t' $TRANSCRIPTOME/ercc.bed >> $OUT_FILE
+#python rRNA_transcript_to_gene.py $TRANSCRIPTOME/rDNA.fa >> $OUT_FILE
+#python tRNA_transcript_to_gene.py $TRANSCRIPTOME/tRNA.fa >> $OUT_FILE
+#echo 'Made transcript table'
 
 bowtie2-build $TRANSCRIPTOME/tRNA.fa $TRANSCRIPTOME/tRNA
 bowtie2-build $TRANSCRIPTOME/rRNA.fa $TRANSCRIPTOME/rRNA
+bowtie2-build $TRANSCRIPTOME/whole_transcriptome.fa $TRANSCRIPTOME/whole_transcriptome
 
-## Download GTF and append tRNA, rRNA, ERCC bed record
-GENES_GTF=$GENOME_PATH/genes.gtf
-curl $ENSEMBL_GTF  \
-	| zcat \
-	| grep -v 'gene_biotype "TEC"' \
-	> $GENES_GTF
-python bed_to_gtf.py $TRANSCRIPTOME/rRNA.bed >> $GENES_GTF
-python bed_to_gtf.py $TRANSCRIPTOME/ercc.bed >> $GENES_GTF
-python bed_to_gtf.py $TRANSCRIPTOME/tRNA.bed >> $GENES_GTF
-echo 'Made gtf'
 	
 #for genome count 
 SAF_FILE=$TRANSCRIPTOME/genes.SAF

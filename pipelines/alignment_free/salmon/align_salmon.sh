@@ -17,7 +17,7 @@ do
     BAM_FILE=$BAM_PATH/${SAMPLENAME}.bam
     echo bowtie2 --threads $THREADS \
             -x $TRANSCRIPTOME_INDEX \
-            -k 30 --very-sensitive-local \
+            -k 30 -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 \
             -1 ${R1} -2 ${R2} \
             --no-mixed --no-discordant --dovetail \
             --fr  \

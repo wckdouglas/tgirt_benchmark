@@ -25,5 +25,6 @@ do
 			-t ${tRNA_INDEX} \
 			-r ${rRNA_INDEX} \
 	    	-p ${THREADS} \
-			-e ${trRNA_INDEX}
+			-e ${trRNA_INDEX} \
+            --skip_trim
 done

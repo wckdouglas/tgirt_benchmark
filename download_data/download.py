@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 from collections import defaultdict
 
 raw_data_path = '/stor/scratch/Lambowitz/cdw2854/bench_marking/data'
@@ -21,4 +22,4 @@ with open('SraRunTable.txt','r') as table:
                     %(raw_data_path,run_number, raw_data_path, sample_id)
             rename_read2_command = 'mv %s/%s_2.fastq.gz %s/%s_R2_001.fastq.gz' \
                     %(raw_data_path,run_number, raw_data_path, sample_id)
-            print ';'.join([download_command, rename_read1_command, rename_read2_command])
+            print(';'.join([download_command, rename_read1_command, rename_read2_command]))

@@ -62,7 +62,7 @@ fit_DESeq <- function(sample_comparison){
 }
 
 out_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes'
-out_file_name = file.path(out_path,'kallisto_DESeq.feather')
+out_file_name = file.path(out_path,'kallisto_bias_DESeq.feather')
 kallisto_df <- map(c('A|B','C|D'), fit_DESeq)  %>%
     purrr:::reduce(rbind) %>%
     mutate(map_type = 'Kallisto') %>%
@@ -71,7 +71,7 @@ message('Written: ', out_file_name)
 
 
 # tximport kallisto abundance to gene count
-abundance_table <- str_c(out_path,'/kallisto_abundance.feather')
+abundance_table <- str_c(out_path,'/kallisto_bias_abundance.feather')
 kallisto_df <- tximport(kallisto_files_df$filename, 
                         type = "kallisto", 
                         tx2gene = tx2gene, 
