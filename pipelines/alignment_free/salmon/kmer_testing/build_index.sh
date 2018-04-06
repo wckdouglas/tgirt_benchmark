@@ -7,3 +7,9 @@ do
 		--transcripts whole_transcriptome.fa \
 		--kmerLen $kmer
 done
+
+salmon index -i transcript_salmon \
+    --perfectHash \
+    --threads 24 \
+    --transcripts whole_transcriptome.fa \
+    --kmerLen 31
