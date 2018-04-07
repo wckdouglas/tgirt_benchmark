@@ -63,7 +63,7 @@ fit_DESeq <- function(sample_comparison){
 }
 
 out_path <- file.path(project_path, 'DEgenes')
-out_file_name = file.path(out_path,'kallisto_bias_DESeq.feather')
+out_file_name <- file.path(out_path,'kallisto_bias_DESeq.feather')
 kallisto_df <- map(c('A|B','C|D'), fit_DESeq)  %>%
     purrr:::reduce(rbind) %>%
     mutate(map_type = 'Kallisto') %>%

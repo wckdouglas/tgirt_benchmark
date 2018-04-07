@@ -12,20 +12,22 @@ library(feather)
 library(DESeq2)
 
 # read gene table
-tx2gene <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcripts.tsv' %>%
+tx2gene <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/all_genes.tsv' %>%
     read_tsv()  %>%
     dplyr::rename(target_id=t_id) %>%
-    select(target_id, gene_id) %>%
+    dplyr::select(target_id, gene_id) %>%
     set_names(c('TXNAME','GENEID')) %>%
     tbl_df
 
 # make sample file and annotations
 run_all <- function(kmer){
-    project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/alignment_free/salmon'
-    project_path <- str_c(project_path, kmer)
-    salmon_files_df <-  list.files(project_path, pattern = '[1-3]$') %>%
+    project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking'
+    salmon_path <- file.path(project_path, 'alignment_free/salmon')
+    kmer_project_path <- str_c(salmon_path, kmer)
+    message('Running ', kmer_project_path)
+    salmon_files_df <-  list.files(kmer_project_path, pattern = '[1-3]$') %>%
         data.frame(samplename=.) %>%
-        mutate(filename = str_c(project_path,samplename,'quant.sf',sep='/'))%>%
+        mutate(filename = str_c(kmer_project_path,samplename,'quant.sf',sep='/'))%>%
         mutate(samplename = str_replace_all(samplename,'-','_')) %>%
         mutate(mix = str_sub(samplename, 8,8)) %>%
         mutate(sample_id = str_sub(samplename, 11, 10)) %>%
@@ -40,15 +42,14 @@ run_all <- function(kmer){
         
         # condition data frame for deseq2
         cond_df <- salmon_subset_df %>%
-            select(mix, samplename) %>%
+            dplyr::select(mix, samplename) %>%
             mutate(mix =  factor(mix,levels = rev(unique(mix))))  %>%
             data.frame()
         
         # tximport salmon abundance to gene count
         salmon_df <- tximport(salmon_files, 
                                 type = "salmon", 
-                                tx2gene = tx2gene, 
-                                reader = read_tsv)
+                                tx2gene = tx2gene)
         rownames(cond_df) = colnames(salmon_df$counts)
         
         # run deseq2 on tximport table
@@ -64,7 +65,7 @@ run_all <- function(kmer){
     
     salmon_df <- map_df(c('A|B','C|D'), fit_DESeq)  %>%
         mutate(map_type = str_c('Salmon',kmer))
-    out_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes'
+    out_path <- file.path(project_path, '/DEgenes')
     out_file_name <- str_c(out_path,'/salmon',kmer,'_DESeq.feather')
     write_feather(salmon_df, out_file_name)
     message('Written: ', out_file_name)
@@ -75,7 +76,6 @@ run_all <- function(kmer){
     tximport(salmon_files_df$filename, 
             type = "salmon", 
             tx2gene = tx2gene, 
-            reader = read_tsv,
             countsFromAbundance='no')%>%#='lengthScaledTPM') %>%
     #    .$counts %>%
         .$abundance %>%
@@ -87,6 +87,6 @@ run_all <- function(kmer){
     message('Written: ', abundance_table)
 }
 
-kmers <- c('','_11','_15','_21')
+kmers <- c('','_11','_15','_21','_aligned')
 
 lapply(kmers, run_all)

@@ -13,12 +13,12 @@ library(purrr)
 
 gene_df <- read_tsv('/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/all_genes.tsv') %>%
     rename(id= gene_id) %>%
-    select(name, id, type) %>% 
+    dplyr::select(name, id, type) %>% 
     distinct()
 
 #subset data table to retain needed columns
 selectSample <- function(d, pattern) {
-    d <- d %>% select(grep(str_c('id|',pattern),names(.)))
+    d <- d %>% dplyr::select(grep(str_c('id|',pattern),names(.)))
     d <- data.frame(d)
     row.names(d) <- d[,1]
     return (d[,-1])
@@ -52,7 +52,7 @@ read_table_func <- function(tablename){
         inner_join(gene_df) %>% 
         mutate(id = ifelse(type %in% c('Mt','rRNA'),name, id)) %>%
         mutate(id = ifelse(grepl('MT',id), str_replace(id, '[0-9]+$',''), id)) %>%
-        select(-name, -type) %>%
+        dplyr::select(-name, -type) %>%
         group_by(id) %>% 
         summarize_all(sum) %>%
         ungroup() %>%
@@ -60,21 +60,23 @@ read_table_func <- function(tablename){
         return()
 }
 
-out_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes'
+project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking'
+out_path <- file.path(project_path, '/DEgenes')
 read_table_and_DESeq <- function(tablename, map_type){
     out_table <- str_c(out_path,'/', map_type,'.feather')
     tablename %>%
     read_table_func() %>%
     map_df(c('A|B','C|D'), fitDESeq, .) %>%
     mutate(map_type = map_type)  %>%
+    mutate(id = str_replace(id, '_gene$','')) %>%
     write_feather(out_table)
     message('Written: ', out_table)
     return(0)
 }
     
 #table_names <- c('/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/Counts/RAW/combined_gene_count.tsv',
-table_names <- c('/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/tgirt_map/Counts/RAW/combined_gene_count.tsv',
-                 '/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/Trim/conventional/counts/feature_counts.tsv')
+table_names <- c(file.path(project_path,'genome_mapping/tgirt_map/Counts/RAW/combined_gene_count.tsv'),
+                 file.path(project_path,'genome_mapping/conventional/counts/feature_counts.tsv'))
 map_types <- c('Customized_pipeline','Conventional_pipeline')
 result <- map2(table_names, map_types, read_table_and_DESeq)
 
