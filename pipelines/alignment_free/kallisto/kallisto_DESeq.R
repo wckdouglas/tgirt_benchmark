@@ -12,7 +12,7 @@ library(tximport)
 library(feather)
 
 # read gene table
-tx2gene <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/all_genes.tsv' %>%
+tx2gene <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcripts.tsv' %>%
     read_tsv()  %>%
     dplyr::rename(target_id=t_id) %>%
     dplyr::select(target_id, gene_id) %>%

@@ -11,8 +11,8 @@ library(tibble)
 library(dplyr)
 library(purrr)
 
-gene_df <- read_tsv('/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/all_genes.tsv') %>%
-    rename(id= gene_id) %>%
+gene_df <- read_tsv('/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcripts.tsv') %>%
+    dplyr::rename(id = gene_id) %>%
     dplyr::select(name, id, type) %>% 
     distinct()
 
