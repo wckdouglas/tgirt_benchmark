@@ -7,12 +7,13 @@ import re
 work_path = os.environ['WORK']
 scratch_path = os.environ['SCRATCH']
 gene_file = os.environ['REF'] + '/benchmarking/human_transcriptome/genes.SAF'
-project_path = work_path + '/cdw2854/bench_marking/genome_mapping'
-map_path = project_path + '/Trim/conventional/bam_files'
-count_path = project_path + '/Trim/conventional/counts'
+project_path = work_path + '/cdw2854/bench_marking_new/bench_marking/genome_mapping'
+map_path = project_path + '/conventional/bam_files'
+count_path = project_path + '/conventional/counts'
 if not os.path.isdir(count_path):
     os.mkdir(count_path)
 bam_files = glob.glob(map_path + '/*bam') 
+bam_files.sort()
 samplename = map(lambda x: os.path.basename(x).replace('.bam',''), bam_files)
 
 feature_count_command = 'featureCounts -a %s ' %(gene_file) +\
@@ -30,9 +31,8 @@ feature_count_command = 'featureCounts -a %s ' %(gene_file) +\
                         '-d 10 '+\
                         '-D 10000 '+\
                         '-B ' +\
-                        '-S fr ' +\
                         '-C '+\
                         '--donotsort '+\
-                        '-o /dev/stdout >  %s/counts.tsv ' %(count_path) 
-print 'cd %s' %count_path
-print feature_count_command
+                        '-o %s/counts ' %(count_path) 
+print(feature_count_command)
+os.system(feature_count_command)
