@@ -54,7 +54,7 @@ def changeType(x):
     
 def union_type(x, y):
     out_type=''
-    types = filter(lambda s: s != 'nan', list(set(map(str, [x,y]))))
+    types = list(filter(lambda s: s != 'nan', list(set(map(str, [x,y])))))
     if len(types):
         out_type = changeType(types[0])
     else:
@@ -90,11 +90,11 @@ def fill_name(name, gene_name):
 t_tab = transcript_table()
 bed = genes_bed()
 df = t_tab.merge(bed, how='outer', on ='gene_id') \
-    .assign(type = lambda d:map(union_type, d.type, d.gene_type)) \
+    .assign(type = lambda d: list(map(union_type, d.type, d.gene_type))) \
     .assign(t_id = lambda d: d.t_id.fillna('NA')) \
-    .assign(type = lambda d: map(mt_tRNA, d.name, d.type))\
-    .assign(name = lambda d: map(rRNA_name, d.name, d.type)) \
-    .assign(name = lambda d: map(fill_name, d.name, d.gene_name))\
+    .assign(type = lambda d: list(map(mt_tRNA, d.name, d.type)))\
+    .assign(name = lambda d: list(map(rRNA_name, d.name, d.type))) \
+    .assign(name = lambda d: list(map(fill_name, d.name, d.gene_name)))\
     .drop(['gene_name','gene_type'], axis=1) 
 union_gene = gene_path + '/all_genes.tsv'
 df.to_csv(union_gene, index=False, sep='\t')

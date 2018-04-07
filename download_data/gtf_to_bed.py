@@ -18,21 +18,21 @@ def parse_extra_fields(extra_field):
 
     return info_dict
 
-
-for line in open(gtf,'r'):
-    if not line.startswith('#'):
-        fields = line.strip().split('\t')
-        if fields[2] == "gene":
-            chrom, start, end, \
-            strand, extra_fields = itemgetter(0,3,4,6,8)(fields)
-            info_dict = parse_extra_fields(extra_fields)
-            line = '{chrom}\t{start}\t{end}\t{gene_name}\t'\
-                    '0\t{strand}\t{gene_type}\t{gene_id}' \
-                    .format(chrom = chrom,
-                            start = start, 
-                            end = end,
-                            strand = strand,
-                            gene_name = info_dict['gene_name'],
-                            gene_id = info_dict['gene_id'],
-                            gene_type = info_dict['gene_biotype'])
-            print(line, file = sys.stdout)
+if __name__ == '__main__':
+    for line in open(gtf,'r'):
+        if not line.startswith('#'):
+            fields = line.strip().split('\t')
+            if fields[2] == "gene":
+                chrom, start, end, \
+                strand, extra_fields = itemgetter(0,3,4,6,8)(fields)
+                info_dict = parse_extra_fields(extra_fields)
+                line = '{chrom}\t{start}\t{end}\t{gene_name}\t'\
+                        '0\t{strand}\t{gene_type}\t{gene_id}' \
+                        .format(chrom = chrom,
+                                start = start, 
+                                end = end,
+                                strand = strand,
+                                gene_name = info_dict['gene_name'],
+                                gene_id = info_dict['gene_id'],
+                                gene_type = info_dict['gene_biotype'])
+                print(line, file = sys.stdout)

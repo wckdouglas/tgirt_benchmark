@@ -12,19 +12,20 @@ library(tximport)
 library(feather)
 
 # read gene table
-tx2gene <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/all_genes.tsv' %>%
+tx2gene <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcripts.tsv' %>%
     read_tsv()  %>%
     dplyr::rename(target_id=t_id) %>%
-    select(target_id, gene_id) %>%
+    dplyr::select(target_id, gene_id) %>%
     set_names(c('TXNAME','GENEID')) %>%
     tbl_df
 
 
 # make sample file and annotations
-project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/alignment_free/kallisto'
-kallisto_files_df <-  list.files(project_path, pattern = '[1-3]$') %>%
+project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking'
+kallisto_path <- file.path(project_path, '/alignment_free/kallisto')
+kallisto_files_df <-  list.files(kallisto_path, pattern = '[1-3]$') %>%
     data.frame(samplename=.) %>%
-    mutate(filename = str_c(project_path,samplename,'abundance.tsv',sep='/'))%>%
+    mutate(filename = str_c(kallisto_path,samplename,'abundance.tsv',sep='/'))%>%
     mutate(samplename = str_replace_all(samplename,'-','_')) %>%
     mutate(mix = str_sub(samplename, 8,8)) %>%
     mutate(sample_id = str_sub(samplename, 11, 10)) %>%
@@ -39,15 +40,15 @@ fit_DESeq <- function(sample_comparison){
 
     # condition data frame for deseq2
     cond_df <- kallisto_subset_df %>%
-        select(mix, samplename) %>%
+        dplyr::select(mix, samplename) %>%
         mutate(mix =  factor(mix,levels = rev(unique(mix))))  %>%
         data.frame()
 
     # tximport kallisto abundance to gene count
     kallisto_df <- tximport(kallisto_files, 
                         type = "kallisto", 
-                        tx2gene = tx2gene, 
-                        reader = read_tsv)
+                        tx2gene = tx2gene) 
+                        #reader = read_tsv)
     rownames(cond_df) = colnames(kallisto_df$counts)
 
     # run deseq2 on tximport table
@@ -61,8 +62,8 @@ fit_DESeq <- function(sample_comparison){
     return(dds)
 }
 
-out_path <- '/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes'
-out_file_name = file.path(out_path,'kallisto_bias_DESeq.feather')
+out_path <- file.path(project_path, 'DEgenes')
+out_file_name <- file.path(out_path,'kallisto_bias_DESeq.feather')
 kallisto_df <- map(c('A|B','C|D'), fit_DESeq)  %>%
     purrr:::reduce(rbind) %>%
     mutate(map_type = 'Kallisto') %>%
@@ -75,7 +76,7 @@ abundance_table <- str_c(out_path,'/kallisto_bias_abundance.feather')
 kallisto_df <- tximport(kallisto_files_df$filename, 
                         type = "kallisto", 
                         tx2gene = tx2gene, 
-                        reader = read_tsv,
+                        #reader = read_tsv,
                         countsFromAbundance='no')%>%#'lengthScaledTPM') %>%
     .$abundance %>%
     data.frame() %>%

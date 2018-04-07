@@ -20,7 +20,7 @@ get_sample_number <- function(samplename){
 
 gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcripts.tsv'  %>%
     read_tsv() %>%
-    select(gene_id, name,type) %>% 
+    dplyr::select(gene_id, name,type) %>% 
     unique %>%
     dplyr::rename(id = gene_id)
 
@@ -31,7 +31,7 @@ ercc_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/ercc_ann
 
 
 #read alignment free abundance file from tximport
-project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
+project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking'
 df <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern='abundance', full.names=T) %>%

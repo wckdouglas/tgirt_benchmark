@@ -112,7 +112,8 @@ samtools faidx $TRANSCRIPTOME/whole_transcriptome.fa
 echo 'Made transcriptome fasta'
 
 ## make transcript table
-#OUT_FILE=$TRANSCRIPTOME/transcripts.tsv
+OUT_FILE=$TRANSCRIPTOME/transcripts.tsv
+python gtf_to_transcript.py $GENES_GTF > $OUT_FILE
 #cat $TRANSCRIPTOME/ensembl_transcripts.fa \
 #	| python transcript_table_from_fa.py > $OUT_FILE
 #awk '{print $1,$1,$1,"ERCC"}' OFS='\t' $TRANSCRIPTOME/ercc.bed >> $OUT_FILE
