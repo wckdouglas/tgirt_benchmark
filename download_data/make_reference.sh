@@ -106,7 +106,7 @@ cat $GENES_GTF \
     | grep -v '"tRNA"'\
     | gffread -g $GENOME_PATH/reference.fa -w - \
     | seqtk seq \
-    | cat - $TRANSCRIPTOME/tRNA.fa \
+    | cat - $tRNA_PATH/nucleo_tRNA.fa \
 	> $TRANSCRIPTOME/whole_transcriptome.fa
 samtools faidx $TRANSCRIPTOME/whole_transcriptome.fa
 echo 'Made transcriptome fasta'

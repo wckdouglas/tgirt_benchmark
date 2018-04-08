@@ -30,11 +30,13 @@ get_sample_number <- function(samplename){
     return(as.numeric(id))
 }
 
-gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/all_genes.tsv' %>%
+gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcripts.tsv' %>%
     read_tsv() %>%
     select(gene_id, name, type) %>%
     dplyr::rename(id = gene_id) %>%
-    unique()
+    unique() %>%
+    mutate(id = str_replace(id, '_gene$','')) 
+    
 
 gene_length_df <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/genes.length' %>%
     read_tsv()  %>%
@@ -44,7 +46,7 @@ gene_length_df <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/gen
     tbl_df
  
 #read alignment free abundance file from tximport
-project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
+project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking/'
 alignment_free <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern='abundance', full.names=T) %>%
@@ -52,11 +54,12 @@ alignment_free <- project_path %>%
     .[!grepl('_[0-9]+',.)] %>%
     map_df(read_feather)  %>%
     gather(samplename, abundance, -id, -map_type) %>%
+    mutate(id = str_replace(id,'_gene$',''))%>%
     tbl_df
 
 # read genome mapping count files
-files <- c(file.path(project_path, 'genome_mapping/Trim/conventional/counts/feature_counts.tsv'),
-           file.path(project_path,'genome_mapping/Counts/RAW/combined_gene_count.tsv'))
+files <- c(file.path(project_path, 'genome_mapping/conventional/counts/feature_counts.tsv'),
+           file.path(project_path,'genome_mapping/tgirt_map/Counts/RAW/combined_gene_count.tsv'))
 labels <- c('conventional','customized')
 genome_df <- map2(files, labels, function(x,y) read_tsv(x) %>% 
                       mutate(map_type=y) %>%
@@ -64,9 +67,12 @@ genome_df <- map2(files, labels, function(x,y) read_tsv(x) %>%
     purrr::reduce(rbind) %>%
     inner_join(gene_length_df) %>%
     mutate(id = str_replace(id,'\\-$',''))%>%
+    mutate(id = str_replace(id,'_gene$',''))%>%
     gather(samplename, abundance, -id,-map_type, -gene_length) %>%
     mutate(id = ifelse(!grepl('ERCC',id),str_replace(id, '\\-[0-9]+$',''),id)) %>%
     mutate(id = ifelse(grepl('^TR|NM|MT',id), str_replace(id,'[0-9]+$','') ,id)) %>%
+    mutate(id = ifelse(grepl('^TR|NM|MT',id), str_replace(id,'[0-9]-$','') ,id)) %>%
+    mutate(id = str_replace_all(id, '\\([-+]\\)','')) %>%
     mutate(id = ifelse(id %in% c('MT-TL','MT-TS'), str_c(id,'1'), id)) %>%
     group_by(id, samplename, map_type) %>%
     summarize(
@@ -91,7 +97,7 @@ genome_df <- map2(files, labels, function(x,y) read_tsv(x) %>%
 
 genome_df %>% 
     spread(samplename,abundance) %>%
-    write_feather('/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes/genome_abundance_tpm.feather')
+    write_feather(file.path(project_path, 'DEgenes/genome_abundance_tpm.feather'))
 
 merge_df <- rbind(genome_df, alignment_free) %>%
     mutate(id = str_replace(id, '[0-9]-$','')) %>%
@@ -107,8 +113,13 @@ plot_df <- merge_df %>%
     group_by(type,samplename, map_type) %>%
     summarize(gene_count = n()) %>%
     ungroup() %>%
-    mutate(samplename = str_replace(samplename, 'Sample_','')) %>%
-    mutate(samplename = str_replace(samplename, '_','')) %>%
+    mutate(sample_id = str_extract(samplename, '_([ABCD])_')) %>%
+    mutate(sample_id = str_replace_all(sample_id, '_','')) %>%
+    mutate(samplenum = str_extract(samplename, '_([1-3])_')) %>%
+    mutate(samplenum = str_replace_all(samplenum, '_','')) %>%
+    mutate(samplename = str_c(sample_id, samplenum)) %>%
+    #mutate(samplename = sample_id) %>%
+    dplyr::select(-sample_id, -samplenum ) %>%
     mutate(type = forcats::fct_reorder(type, gene_count , sum)) %>%
     mutate(pipeline_type = ifelse(grepl('HISAT|TGIR',map_type),1,2)) %>%
     mutate(map_type = forcats::fct_reorder(map_type, pipeline_type))
@@ -119,12 +130,12 @@ friedman_p <-  plot_df %>%
     friedman.test(gc~map_type|samplename, data=.) %>%
     .$p.value
 
-friedman_per_type_p <- plot_df %>%
-    group_by(type) %>%
-    nest() %>%
-    mutate(friedman = map(data, ~friedman.test(gene_count~map_type|samplename, data=.))) %>%
-    mutate(p = map_dbl(friedman, function(x) x$p.value)) %>%
-    unnest(p)
+#friedman_per_type_p <- plot_df %>%
+#    group_by(type) %>%
+#    nest() %>%
+ #   mutate(friedman = map(data, ~friedman.test(gene_count~map_type|samplename, data=.))) %>%
+ #   mutate(p = map_dbl(friedman, function(x) x$p.value)) %>%
+ #   unnest(p)
 
 #per type p value
 all_comparison <- gtools::permutations(n=4,r=2,
@@ -157,9 +168,11 @@ all_comparison = gtools::permutations(n=4,r=2,
                                       repeats.allowed=F)
 get_p <-function(i, all_comparison, plot_df){
     compare <- str_c(all_comparison[i,1],all_comparison[i,2],sep='|')
+    message('Comparing: ', all_comparison[i,1], ' and ', all_comparison[i,2])
 
     wilcox_per_type_p <- plot_df %>%
         filter(map_type == all_comparison[i,1] | map_type == all_comparison[i,2]) %>%
+        mutate(map_type = factor(map_type)) %>%
         arrange(samplename) %>%
         group_by(type) %>%
         nest() %>%
@@ -240,7 +253,7 @@ p <- plot_grid(gene_count_p, ercc_lm,
                labels = letters[1:2],
                label_size = 20,
                rel_heights=c(2,1))
-figurepath <- '/stor/work/Lambowitz/cdw2854/bench_marking/figures'
+figurepath <- file.path(project_path,'/figures')
 figurename <- file.path(figurepath , 'exploring_genes.pdf')
 ggsave(p, file=figurename, width = 12,height=12)
 message('Plotted: ', figurename)
@@ -446,7 +459,7 @@ venn_Df <- merge_df %>%
     mutate(samplename = str_replace(samplename,'_',' ')) %>%
     ungroup %>% 
     tbl_df 
-merge_df %>% write_feather('/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes/all_tpm_table.feather')
+merge_df %>% write_feather(file.path(project_path,'/DEgenes/all_tpm_table.feather'))
 
 colors <- RColorBrewer::brewer.pal(n=8,'Dark2')
 colors <- c(colors,'darkblue', 'firebrick4','darkorchid4','darkslategray3')
