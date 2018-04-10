@@ -14,6 +14,7 @@ library(purrr)
 gene_df <- read_tsv('/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcripts.tsv') %>%
     dplyr::rename(id = gene_id) %>%
     dplyr::select(name, id, type) %>% 
+    mutate(id = str_replace(id, '_gene$','')) %>%
     distinct()
 
 #subset data table to retain needed columns
@@ -47,8 +48,10 @@ fitDESeq <-  function(comparison,df){
 read_table_func <- function(tablename){
     tablename %>%
         read_tsv()  %>%
+        mutate(id = str_replace(id, '_gene$','')) %>%
         mutate(id = str_replace(id, '[0-9]+-[0-9]+$','')) %>%
         mutate(id = str_replace(id,'[0-9]+-$','')) %>%
+        mutate(id = str_replace(id,'\\([+-]\\)','')) %>%
         inner_join(gene_df) %>% 
         mutate(id = ifelse(type %in% c('Mt','rRNA'),name, id)) %>%
         mutate(id = ifelse(grepl('MT',id), str_replace(id, '[0-9]+$',''), id)) %>%
@@ -68,7 +71,6 @@ read_table_and_DESeq <- function(tablename, map_type){
     read_table_func() %>%
     map_df(c('A|B','C|D'), fitDESeq, .) %>%
     mutate(map_type = map_type)  %>%
-    mutate(id = str_replace(id, '_gene$','')) %>%
     write_feather(out_table)
     message('Written: ', out_table)
     return(0)

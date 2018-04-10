@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 
+rm(list = ls())
 #library("BiocParallel")
 #register(MulticoreParam(12))
 library(DESeq2)
@@ -63,7 +64,7 @@ fit_DESeq <- function(sample_comparison){
 }
 
 out_path <- file.path(project_path, 'DEgenes')
-out_file_name <- file.path(out_path,'kallisto_bias_DESeq.feather')
+out_file_name <- file.path(out_path,'kallisto_DESeq.feather')
 kallisto_df <- map(c('A|B','C|D'), fit_DESeq)  %>%
     purrr:::reduce(rbind) %>%
     mutate(map_type = 'Kallisto') %>%
@@ -72,7 +73,7 @@ message('Written: ', out_file_name)
 
 
 # tximport kallisto abundance to gene count
-abundance_table <- str_c(out_path,'/kallisto_bias_abundance.feather')
+abundance_table <- str_c(out_path,'/kallisto_abundance.feather')
 kallisto_df <- tximport(kallisto_files_df$filename, 
                         type = "kallisto", 
                         tx2gene = tx2gene, 

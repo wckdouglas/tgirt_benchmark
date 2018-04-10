@@ -43,7 +43,8 @@ def main():
         .pipe(pd.pivot_table,index = ['id'],  
             values = 'count' , columns = ['sample_name']) \
         .reset_index()\
-        .fillna(0)
+        .fillna(0) \
+        .assign(id = lambda d: d.id.str.replace('_gene$',''))
     df.iloc[:,1:] = df.iloc[:,1:].astype(int)
     tablename = count_file_path + '/combined_gene_count.tsv'
     df.to_csv(tablename, sep='\t', index=False)

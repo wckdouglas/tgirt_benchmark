@@ -12,10 +12,11 @@ library(cowplot)
 library(feather)
 
 # read gene table
-gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/all_genes.tsv'  %>%
+gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcripts.tsv'  %>%
     read_tsv() %>%
     dplyr::select(gene_id, name,type) %>% 
     dplyr::rename(id = gene_id) %>%
+    mutate(id = str_replace(id, '_gene$','')) %>%
     mutate(id = ifelse(type=='tRNA', name, id)) %>%
     mutate(id = ifelse(grepl('MT',id), str_replace(id,'[0-9]$',''), id)) %>%
     distinct() %>%
@@ -23,20 +24,22 @@ gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/all_gene
     tbl_df
 
 gene_length <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/genes.length' %>%
-    read_tsv() 
+    read_tsv() %>%
+    mutate(id = str_replace(id, '_gene$',''))
 
 # check <- gene_file %>% group_by(id) %>% summarize(a=n()) %>% filter(a>1)
 # read all tables ====================================================
-project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
+project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking'
 df <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern = '.feather', full.names=T) %>%
-    .[!grepl('abundance|tpm|_[0-9]+|fc_table',.)] %>%
+    .[!grepl('abundance|tpm|_[0-9]+|fc_table|aligned|bias',.)] %>%
     map_df(read_feather) %>%
     mutate(map_type = case_when(
                 grepl('Conventional',.$map_type) ~ "HISAT2+featureCounts",
                 grepl('Customized', .$map_type) ~ "TGIRT-map",
                 TRUE~ .$map_type)) %>%
+    mutate(id = str_replace(id, '_gene$','')) %>%
     tbl_df
     
     
@@ -70,7 +73,7 @@ fc_df <- df %>%
     mutate(analytic_type = ifelse(grepl('HI|TG',map_type),'Genome Mapping','Alignment-free')) %>%
     inner_join(gene_file %>% 
                    dplyr::select(id,name,type) %>% 
-                   unique,
+                   distinct(),
                by = 'id') %>%
     tbl_df
     

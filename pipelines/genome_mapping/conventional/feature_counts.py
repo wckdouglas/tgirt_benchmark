@@ -33,6 +33,6 @@ feature_count_command = 'featureCounts -a %s ' %(gene_file) +\
                         '-B ' +\
                         '-C '+\
                         '--donotsort '+\
-                        '-o %s/counts ' %(count_path) 
+                        '-o %s/counts 2>&1 | tee log ' %(count_path) 
 print(feature_count_command)
 os.system(feature_count_command)

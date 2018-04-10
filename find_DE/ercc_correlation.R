@@ -36,7 +36,7 @@ project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking'
 df <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern='abundance', full.names=T) %>%
-    .[!grepl('_[0-9]+',.)] %>%
+    .[!grepl('_[0-9]+|aligned|bias',.)] %>%
     map_df(read_feather) %>%
     mutate(id = str_replace(id, '_gene$','')) %>%
     gather(samplename, abundance, -id, -map_type) %>%

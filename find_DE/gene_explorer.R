@@ -15,6 +15,8 @@ library(UpSetR)
 setwd('~/tgirt_benchmark/find_DE/')
 source('ercc_correlation.R')
 counts_to_tpm <- function(counts, lengths) {
+    #https://www.biostars.org/p/171766/
+    #
     rate <- counts / lengths
     out_tpm <- rate / sum(rate,na.rm=T) * 1e6
     return(out_tpm)
@@ -40,6 +42,8 @@ gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcri
 
 gene_length_df <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/genes.length' %>%
     read_tsv()  %>%
+    mutate(id = str_replace(id, '_gene$','')) %>%
+    mutate(id = str_replace(id, '[0-9]+-[0-9]+$','')) %>%
     group_by(id) %>%
     summarize(gene_length = min(gene_length)) %>%
     ungroup() %>%
@@ -51,7 +55,7 @@ alignment_free <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern='abundance', full.names=T) %>%
     .[!grepl('genome',.)] %>%
-    .[!grepl('_[0-9]+',.)] %>%
+    .[!grepl('_[0-9]+|aligned|bias',.)] %>%
     map_df(read_feather)  %>%
     gather(samplename, abundance, -id, -map_type) %>%
     mutate(id = str_replace(id,'_gene$',''))%>%
@@ -65,9 +69,9 @@ genome_df <- map2(files, labels, function(x,y) read_tsv(x) %>%
                       mutate(map_type=y) %>%
                       set_names(str_replace_all(names(.),'-','_'))) %>%
     purrr::reduce(rbind) %>%
-    inner_join(gene_length_df) %>%
-    mutate(id = str_replace(id,'\\-$',''))%>%
     mutate(id = str_replace(id,'_gene$',''))%>%
+    mutate(id = str_replace(id,'[0-9]+-[0-9]+$',''))%>%
+    inner_join(gene_length_df) %>%
     gather(samplename, abundance, -id,-map_type, -gene_length) %>%
     mutate(id = ifelse(!grepl('ERCC',id),str_replace(id, '\\-[0-9]+$',''),id)) %>%
     mutate(id = ifelse(grepl('^TR|NM|MT',id), str_replace(id,'[0-9]+$','') ,id)) %>%
@@ -346,7 +350,7 @@ spreaded_df <-merge_df %>%
     set_names(make.names(names(.))) %>%
     tbl_df
 
-spreaded_df %>% write_feather('/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes/tpm_table.feather')
+spreaded_df %>% write_feather(file.path(project_path, '/DEgenes/tpm_table.feather'))
 
 group_expression_df <- spreaded_df %>%
     group_by(samplename) %>%
