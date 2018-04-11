@@ -39,13 +39,13 @@ colnames.remove('id')
 new_colnames = ['id']
 new_colnames.extend(colnames)
 df = df[new_colnames]
-df['id'] = df['id'].str.replace('_gene$','')
 
 tablename =count_path + '/feature_counts.tsv' 
 df \
     .merge(read_genes_info(), on ='id', how = 'inner') \
     .assign(id = lambda d: [assign_rRNA(row) for i, row in d.iterrows()])\
     .drop(['name','type'], axis=1)\
+    .assign(id = lambda d: d.id.str.replace('_gene$','')) \
     .to_csv(tablename, index=False, sep='\t')
 print('Written %s' %tablename)
 

@@ -12,24 +12,27 @@ library(cowplot)
 library(feather)
 
 # read gene table
-gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/all_genes.tsv'  %>%
+gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcripts.tsv'  %>%
     read_tsv() %>%
     select(gene_id, name,type) %>% 
     dplyr::rename(id = gene_id) %>%
+    mutate(id = str_replace(id, '_gene$','')) %>%
     mutate(id = ifelse(type=='tRNA', name, id)) %>%
     mutate(id = ifelse(grepl('MT',id), str_replace(id,'[0-9]$',''), id)) %>%
+    distinct() %>%
     distinct() %>%
 #    mutate(type= ifelse(grepl('MT-T',name),'tRNA',type)) %>% 
     tbl_df
 
 # read all tables ====================================================
-project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
+project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking'
 df <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern = '.feather', full.names=T) %>%
     .[!grepl('abundance|tpm|Conven|kalli|fc_table',.)] %>%
     map_df(read_feather) %>%
     mutate(map_type = case_when(
+                        grepl('align', .$map_type)~'Salmon: Alignment-based',
                         grepl('_[0-9]+', .$map_type)~str_replace(.$map_type,'_','\nkmer='),
                         grepl('Salmon', .$map_type)~'Salmon\nkmer=31',
                         grepl('Cust',.$map_type) ~ "TGIRT-map",
@@ -139,7 +142,7 @@ per_type_r2_df %>%
     write_csv(error_table)
 
 
-colors <- c('#BE8088', '#B88573', '#9C915A', '#789A63', '#F0E442')
+colors <- c('#BE8088', '#B88573', '#9C915A', '#789A63','#699695', '#F0E442')
 rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)) %>% mutate(prep = str_replace(prep,'\n',' ')), 
        aes(x=prep,y=rmse, fill=prep)) + 
     geom_bar(stat='identity') +
@@ -151,8 +154,7 @@ rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)) %>% mu
     theme(axis.ticks.x=element_blank())+
     theme(legend.key.height = unit(1,'line')) +
     theme(legend.position = c(0.6,0.15)) +
-    scale_fill_manual(values=colors) +
-    ylim(0,0.8)
+    scale_fill_manual(values=colors) 
 
 tRNA_error <- fc_type_df %>% 
     filter(type=='tRNA') %>%

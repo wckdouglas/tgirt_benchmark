@@ -25,8 +25,10 @@ gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcri
 
 gene_length <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/genes.length' %>%
     read_tsv() %>%
-    mutate(id = str_replace(id, '_gene$',''))
-
+    mutate(id = str_replace(id, '_gene$','')) %>%
+    mutate(id = str_replace(id, '[0-9]+-[0-9]+','')) %>%
+    mutate(id = str_replace(id, '\\([+-]\\)$','')) %>%
+    tbl_df
 # check <- gene_file %>% group_by(id) %>% summarize(a=n()) %>% filter(a>1)
 # read all tables ====================================================
 project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking'
@@ -162,7 +164,7 @@ rmse_type_p <- ggplot(data=per_type_r2_df %>% filter(!grepl('rRNA',type)),
     theme(axis.ticks.x=element_blank())+
     theme(legend.key.height = unit(2,'line')) +
     theme(legend.position = c(0.65,0.2)) +
-    ylim(0,0.8) + 
+#    ylim(0,0.8) + 
     scale_fill_manual(values=colors)
 
 colors <- c("#E69F00", "#F0E442", "#009E73", "#56B4E9")

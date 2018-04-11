@@ -1,9 +1,10 @@
 #!/bin/bash
 
-DATAPATH=${SCRATCH}/bench_marking/genome_mapping/Trim
+PROJECT_PATH=/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking
+DATAPATH=${PROJECT_PATH}/genome_mapping/tgirt_map/Trim
 INDEX_PATH=${REF}/benchmarking/human_transcriptome
 INDEX=${INDEX_PATH}/transcriptome_kallisto/transcriptome_kallisto
-RESULTPATH=${SCRATCH}/bench_marking/alignment_free
+RESULTPATH=${PROJECT_PATH}/alignment_free
 COUNT_PATH=${RESULTPATH}/kallisto
 BAM_PATH=${RESULTPATH}/bamFiles
 THREADS=24

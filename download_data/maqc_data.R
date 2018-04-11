@@ -13,7 +13,8 @@ library(dplyr)
 library(tidyr)
 library(GEOquery)
 
-work_path <- "/stor/work/Lambowitz/cdw2854/bench_marking/maqc"
+work_path <- "/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking/maqc"
+dir.create(work_path)
 setwd(work_path)
 
 # download id conversion table

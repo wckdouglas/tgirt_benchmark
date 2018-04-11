@@ -9,6 +9,7 @@ library(stringr)
 library(tidyr)
 library(purrr)
 
+project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking'
 # read gene table
 figurepath <- str_c(project_path, '/figures')
 ercc_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/ercc_annotation.tsv' %>%
@@ -17,12 +18,12 @@ ercc_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/ercc_ann
     tbl_df
 
 # read all tables ====================================================
-project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
 
 df <- file.path(project_path, 'DEgenes') %>%
     list.files(path=., pattern = '.feather', full.names=T) %>%
-    .[!grepl('abundance|tpm|_[0-9]+|fc_',.)] %>%
+    .[!grepl('abundance|tpm|_[0-9]+|fc_|bias|align',.)] %>%
     map_df(read_feather) %>%
+    mutate(id = str_replace(id, '_gene$','')) %>%
     gather(variable, value, -id, -map_type, - comparison) %>%
     filter(grepl('ERCC',id)) %>%
     filter(grepl('pvalue|padj|baseMean|log2FoldChange', variable)) %>%

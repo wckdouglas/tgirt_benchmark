@@ -156,9 +156,9 @@ get_all_p <-function(x1, x2, all_comparison, plot_df){
     
     a <- wilcox_p %>% filter(map_type == x1)
     b <- wilcox_p %>% filter(map_type == x2)
-    wilcox_p <- effsize::cohen.d(a$gc, b$gc, paired=T) %>%
+    cohen <- effsize::cohen.d(a$gc, b$gc, paired=T) %>%
         .$estimate
-    return(data.frame(wilcox_p, compare))
+    return(data.frame(cohen, compare))
 }
 pval_df <- all_comparison %>%
     data.frame() %>%

@@ -10,7 +10,10 @@ library(cowplot)
 library(purrr)
 library(viridis)
 
-taqman <- '/stor/work/Lambowitz/cdw2854/bench_marking/maqc/taqman_fc_table.feather' %>%
+
+project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking'
+
+taqman <- file.path(project_path,'maqc/taqman_fc_table.feather') %>%
     read_feather() %>%
     dplyr::rename(id = ensembl_gene_id) %>%
     mutate(real_FC_AB = ifelse(abs(logFC_AB)>0.5, 'DE','notDE')) %>%
@@ -25,11 +28,10 @@ taqman <- '/stor/work/Lambowitz/cdw2854/bench_marking/maqc/taqman_fc_table.feath
     mutate(taqman_fc = as.numeric(taqman_fc))
 
 # read all tables ====================================================
-project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking'
 df <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern = '.feather', full.names=T) %>%
-    .[!grepl('abundance|tpm|_[0-9]+',.)] %>%
+    .[!grepl('abundance|tpm|_[0-9]+|bias|aligned',.)] %>%
     map_df(read_feather) %>%
     gather(variable, value, -id, -map_type, - comparison) %>%
     filter(grepl('pvalue|log2FoldChange', variable)) %>%
