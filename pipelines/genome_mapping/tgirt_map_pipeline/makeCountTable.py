@@ -29,9 +29,9 @@ def readSample(count_file_path, tRNA_count_path, sample_id):
     return df
 
 def main():
-    work = os.environ['SCRATCH']
-    count_path = work + '/bench_marking/genome_mapping/Counts'
-    count_path = work + '/bench_marking/genome_mapping/tgirt_map/Counts'
+    work = os.environ['WORK']
+    count_path = work + '/cdw2854/bench_marking/genome_mapping/Counts'
+    count_path = work + '/cdw2854/bench_marking_new/bench_marking/genome_mapping/tgirt_map/Counts'
     count_file_path = count_path + '/RAW'
     tRNA_count_path = count_path + '/tRNA_RAW'
     count_files = glob.glob(count_file_path + '/*counts')
@@ -44,7 +44,8 @@ def main():
         .pipe(pd.pivot_table,index = ['id'],  
             values = 'count' , columns = ['sample_name']) \
         .reset_index()\
-        .fillna(0)
+        .fillna(0) \
+        .assign(id = lambda d: d.id.str.replace('_gene$',''))
     df.iloc[:,1:] = df.iloc[:,1:].astype(int)
     tablename = count_file_path + '/combined_gene_count.tsv'
     df.to_csv(tablename, sep='\t', index=False)

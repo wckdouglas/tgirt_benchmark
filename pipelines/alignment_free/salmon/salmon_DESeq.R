@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 
+rm(list = ls())
 #library("BiocParallel")
 #register(MulticoreParam(12))
 library(readr)
@@ -88,5 +89,4 @@ run_all <- function(kmer){
 }
 
 kmers <- c('','_11','_15','_21','_aligned')
-
 lapply(kmers, run_all)

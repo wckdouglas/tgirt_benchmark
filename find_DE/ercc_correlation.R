@@ -22,7 +22,8 @@ gene_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcri
     read_tsv() %>%
     dplyr::select(gene_id, name,type) %>% 
     unique %>%
-    dplyr::rename(id = gene_id)
+    dplyr::rename(id = gene_id) %>%
+    mutate(id = str_replace(id, '_gene$', '')) 
 
 ercc_file <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/ercc_annotation.tsv' %>%
     read_tsv() %>%
@@ -35,8 +36,9 @@ project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking'
 df <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern='abundance', full.names=T) %>%
-    .[!grepl('_[0-9]+',.)] %>%
+    .[!grepl('_[0-9]+|aligned|bias',.)] %>%
     map_df(read_feather) %>%
+    mutate(id = str_replace(id, '_gene$','')) %>%
     gather(samplename, abundance, -id, -map_type) %>%
     inner_join(gene_file) %>%
     filter(type=='ERCC') %>%

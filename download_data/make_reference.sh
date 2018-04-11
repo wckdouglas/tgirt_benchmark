@@ -69,9 +69,13 @@ tRNA_PATH=$TRANSCRIPTOME/tRNA
 mkdir -p $tRNA_PATH
 curl -o $tRNA_PATH/hg38-tRNAs.tar.gz $GTRNA  
 tar zxvf $tRNA_PATH/hg38-tRNAs.tar.gz --directory $tRNA_PATH
-python scrape_tRNA_name.py $tRNA_PATH
-python make_tRNA_fasta.py $tRNA_PATH > $tRNA_PATH/nucleo_tRNA.fa
-cat $tRNA_PATH/hg38_tRNA.info | sed 1d > $TRANSCRIPTOME/tRNA.bed 
+python make_tRNA.py \
+    $tRNA_PATH/hg38-tRNAs-detailed.ss \
+    $TRANSCRIPTOME/tRNA.bed \
+    $tRNA_PATH/nucleo_tRNA.fa
+#python scrape_tRNA_name.py $tRNA_PATH
+#python make_tRNA_fasta.py $tRNA_PATH > $tRNA_PATH/nucleo_tRNA.fa
+#cat $tRNA_PATH/hg38_tRNA.info | sed 1d > $TRANSCRIPTOME/tRNA.bed 
 cat $TRANSCRIPTOME/tRNA.bed |cut -f1-8 >> $TRANSCRIPTOME/genes.bed
 cat $TRANSCRIPTOME/genes.bed \
 	| grep 'Mt_tRNA' \
@@ -106,7 +110,7 @@ cat $GENES_GTF \
     | grep -v '"tRNA"'\
     | gffread -g $GENOME_PATH/reference.fa -w - \
     | seqtk seq \
-    | cat - $TRANSCRIPTOME/tRNA.fa \
+    | cat - $tRNA_PATH/nucleo_tRNA.fa \
 	> $TRANSCRIPTOME/whole_transcriptome.fa
 samtools faidx $TRANSCRIPTOME/whole_transcriptome.fa
 echo 'Made transcriptome fasta'
