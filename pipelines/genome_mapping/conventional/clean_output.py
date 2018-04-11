@@ -28,7 +28,7 @@ def assign_rRNA(row):
 project_path = os.environ['WORK'] + '/cdw2854/bench_marking_new/bench_marking/genome_mapping'
 count_path = project_path + '/conventional/counts'
 
-df = pd.read_table(count_path + '/counts.tsv',
+df = pd.read_table(count_path + '/counts',
         skiprows=1) 
 df.columns = list(map(lambda x: os.path.basename(x.replace('.bam','')), df.columns))
 df.columns = list(map(lambda x: x.replace('-','_'), df.columns))
@@ -42,7 +42,7 @@ df = df[new_colnames]
 
 tablename =count_path + '/feature_counts.tsv' 
 df \
-    .merge(read_genes_info(), on ='id', how = 'inner') \
+    .merge(read_genes_info(), on ='id', how = 'left') \
     .assign(id = lambda d: [assign_rRNA(row) for i, row in d.iterrows()])\
     .drop(['name','type'], axis=1)\
     .assign(id = lambda d: d.id.str.replace('_gene$','')) \

@@ -8,7 +8,7 @@ RESULTPATH=${PROJECT_PATH}/alignment_free
 COUNT_PATH=${RESULTPATH}/kallisto
 BAM_PATH=${RESULTPATH}/bamFiles
 THREADS=24
-mkdir -p ${COUNT_PATH} ${BAM_PATH}
+mkdir -p ${COUNT_PATH} 
 
 for R1 in ${DATAPATH}/*.1.fq.gz
 do

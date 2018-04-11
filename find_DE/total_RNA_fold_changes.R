@@ -32,6 +32,7 @@ gene_length <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/genes.
 # check <- gene_file %>% group_by(id) %>% summarize(a=n()) %>% filter(a>1)
 # read all tables ====================================================
 project_path <- '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking'
+figurepath <- file.path(project_path, 'figures')
 df <- project_path %>%
     file.path('DEgenes') %>%
     list.files(path = ., pattern = '.feather', full.names=T) %>%

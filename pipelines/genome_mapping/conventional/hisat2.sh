@@ -3,10 +3,11 @@
 PROJECT_PATH=${SCRATCH}/bench_marking
 #PROJECT_PATH=${WORK}/cdw2854/bench_marking
 PROJECT_PATH=${PROJECT_PATH}/genome_mapping
-DATAPATH=${PROJECT_PATH}/Trim
-RESULTPATH=${DATAPATH}/conventional
+DATAPATH=${PROJECT_PATH}/tgirt_map/Trim
+RESULTPATH=${PROJECT_PATH}/conventional
 BAM_PATH=$RESULTPATH/bam_files
-REFERENCE_PATH=$REF/benchmarking/GRCH38_genome
+REF_PATH=$SCRATCH/ref/benchmarking_new
+REFERENCE_PATH=$REF_PATH/benchmarking/GRCH38_genome
 HISAT_INDEX=$REFERENCE_PATH/reference
 SPLICE_FILE=$REFERENCE_PATH/splicesite.tsv
 mkdir -p $BAM_PATH
