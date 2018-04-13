@@ -40,8 +40,8 @@ def read_file(flag_stat_file):
     return samplename, trimmed, proper_map
 
 
-project_path = '/stor/work/Lambowitz/cdw2854/bench_marking'
-base_path = project_path + '/genome_mapping/Trim'
+project_path = '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking'
+base_path = project_path + '/genome_mapping/tgirt_map/Trim'
 flagstat_path = base_path + '/conventional/bam_files'
 samples = glob.glob(flagstat_path + '/*flagstat')
 df = pd.DataFrame(map(read_file, samples), 

@@ -176,7 +176,7 @@ tRNA_error <- fc_type_df %>%
         theme(legend.position = 'none') +
         draw_text('k = 11 or 31', 40, 13) +
         draw_text('k = 15 or 21', 53, 11) +
-        draw_text('TGIRT-map', 50, 2) 
+        draw_text('Salmon (Alignment-based)\nTGIRT-map', 50, 2) 
 
 
 quantile_length <- fc_df %>% 
@@ -222,5 +222,5 @@ p <- plot_grid(length_tile_p+
                labels = letters[1:2], label_size=20,
                rel_heights=c(1.5,1))
 figurename <- str_c(figurepath, '/fold_change_all_gene_kmer.png')
-save_plot(p, file=figurename,  base_width=8, base_height=8) 
+save_plot(p, file=figurename,  base_width=10, base_height=8) 
 message('Saved: ', figurename)

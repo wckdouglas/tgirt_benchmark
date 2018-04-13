@@ -45,7 +45,7 @@ df <- project_path %>%
     mutate(id = str_replace(id, '_gene$','')) %>%
     tbl_df
     
-    
+z_value <- 1.43    
 fc_df <- df %>%
     mutate(comparison = str_replace(comparison, ' vs ','')) %>%
     gather(variable, value, -id, -comparison,-map_type) %>%
@@ -58,15 +58,15 @@ fc_df <- df %>%
     filter(!is.na(logFC_AB)) %>%
     filter(!is.na(logFC_CD)) %>% 
     mutate(AB = 2^logFC_AB) %>%
-    mutate(z = 1.43) %>%
+    mutate(z = z_value) %>%
     mutate(k1 = 3*z/(3*z+1)) %>%
     mutate(k2 = z/(z+3)) %>%
     mutate(predict = log2(k1 * 2^(logFC_AB) + (1-k1)) - log2(k2 * 2^(logFC_AB) + (1-k2))) %>%
-    mutate(z = 1.43*1.1) %>%
+    mutate(z = z_value*1.1) %>%
     mutate(k1 = 3*z/(3*z+1)) %>%
     mutate(k2 = z/(z+3)) %>%
     mutate(upper_error = log2(k1 * 2^(logFC_AB) + (1-k1)) - log2(k2 * 2^(logFC_AB) + (1-k2))) %>%
-    mutate(z = 1.43*0.9) %>%
+    mutate(z = z_value*0.9) %>%
     mutate(k1 = 3*z/(3*z+1)) %>%
     mutate(k2 = z/(z+3)) %>%
     mutate(lower_error = log2(k1 * 2^(logFC_AB) + (1-k1)) - log2(k2 * 2^(logFC_AB) + (1-k2))) %>%
@@ -74,7 +74,7 @@ fc_df <- df %>%
     mutate(error = logFC_CD - predict) %>% 
     ungroup() %>%
     mutate(analytic_type = ifelse(grepl('HI|TG',map_type),'Genome Mapping','Alignment-free')) %>%
-    inner_join(gene_file %>% 
+    left_join(gene_file %>% 
                    dplyr::select(id,name,type) %>% 
                    distinct(),
                by = 'id') %>%
@@ -343,5 +343,57 @@ s_p <- ggplot() +
     theme(strip.text = element_text(size = 16))
 message('Plotted S curve')
 figurename <- str_c(figurepath, '/kallisto_r2_splot.png')
-save_plot(s_p, file=figurename,  base_width=8, base_height=8) 
+save_plot(s_p, file=figurename,  base_width=10, base_height=10) 
+message('Saved: ', figurename)
+
+
+
+#plot all low
+all_quantile_length <- fc_df %>% 
+    inner_join(gene_length)  %>%
+    #    write_feather('/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes/fc_table.feather')
+    group_by(map_type) %>%
+    nest() %>%
+    mutate(data = map(data, ~mutate(., length_tile = ntile(gene_length, 4)))) %>%
+    unnest() %>%
+    mutate(length_tile_group = case_when(
+        .$length_tile == 4 ~ '0-25%\n(Longest genes)',
+        .$length_tile == 3 ~ '25-50%',
+        .$length_tile == 2 ~ '50-75%',
+        .$length_tile == 1 ~ '75-100%\n(Shortest genes)'
+    )) %>% 
+    filter(length_tile == 1) 
+r2_df <- quantile_length_r2 %>% 
+    mutate(r2_label = round(rs,3)) %>%
+    mutate(r2_label = paste('R^2','==',r2_label)) %>%
+    mutate(rmse_label = round(rmse,3)) %>%
+    mutate(rmse_label = paste('RMSE','==',rmse_label)) %>%
+    filter(length_tile == 1) %>%
+    dplyr::select(r2_label, rmse_label, length_tile_group, map_type, rs)
+s_p <- ggplot() + 
+    stat_density2d(geom = "raster", 
+                   data = all_quantile_length %>% arrange(-length_tile),
+                   aes(x=predict, y = logFC_CD, fill = ..density..), 
+                   contour = FALSE) +
+    #    geom_smooth(data = quantile_length %>% arrange(-length_tile),
+    #                aes(x=predict, y = logFC_CD), method='lm', 
+    #                color='purple', alpha=0.5)+
+    facet_wrap(~map_type, scale='free') +
+    labs(x = 'Expected fold change CD (log2)', y = 'Measured fold change CD (log2)', 
+         color = ' ', fill = 'Density') +
+    xlim(-1,1) +
+    ylim(-1,1) +
+    geom_abline(intercept = 0, slope = 1, color = 'red', alpha=0.6) +
+    geom_text(data=r2_df, x = -0.4, y = 0.8,
+              aes(label = r2_label), face='bold', size = 7, 
+              color='white', parse=T)+
+    geom_text(data=r2_df, x = -0.4, y = 0.6,
+              aes(label = rmse_label), face='bold', size = 7, 
+              color='white', parse=T)+
+    viridis::scale_fill_viridis() +
+    panel_border()  +
+    theme(strip.text = element_text(size = 16))
+message('Plotted S curve')
+figurename <- str_c(figurepath, '/all_short_r2_splot.png')
+save_plot(s_p, file=figurename,  base_width=10, base_height=10) 
 message('Saved: ', figurename)

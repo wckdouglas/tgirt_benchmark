@@ -17,6 +17,7 @@ tx2gene <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcript
     read_tsv()  %>%
     dplyr::rename(target_id=t_id) %>%
     dplyr::select(target_id, gene_id) %>%
+    dplyr::filter(!grepl('MT', gene_id)) %>%
     set_names(c('TXNAME','GENEID')) %>%
     tbl_df
 
@@ -48,8 +49,8 @@ fit_DESeq <- function(sample_comparison){
     # tximport kallisto abundance to gene count
     kallisto_df <- tximport(kallisto_files, 
                         type = "kallisto", 
-                        tx2gene = tx2gene) 
-                        #reader = read_tsv)
+                        tx2gene = tx2gene,
+                        reader = read_tsv)
     rownames(cond_df) = colnames(kallisto_df$counts)
 
     # run deseq2 on tximport table

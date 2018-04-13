@@ -18,6 +18,7 @@ tx2gene <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcript
     dplyr::rename(target_id=t_id) %>%
     dplyr::select(target_id, gene_id) %>%
     set_names(c('TXNAME','GENEID')) %>%
+    filter(!grepl('MT',GENEID)) %>%
     tbl_df
 
 # make sample file and annotations
@@ -50,7 +51,8 @@ run_all <- function(kmer){
         # tximport salmon abundance to gene count
         salmon_df <- tximport(salmon_files, 
                                 type = "salmon", 
-                                tx2gene = tx2gene)
+                                tx2gene = tx2gene,
+                                reader = read_tsv)
         rownames(cond_df) = colnames(salmon_df$counts)
         
         # run deseq2 on tximport table
