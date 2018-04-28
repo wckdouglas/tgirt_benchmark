@@ -44,6 +44,10 @@ gene_length_df <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/gen
     read_tsv()  %>%
     mutate(id = str_replace(id, '_gene$','')) %>%
     mutate(id = str_replace(id, '[0-9]+-[0-9]+$','')) %>%
+    mutate(id = str_replace_all(id, '\\([-+]\\)','')) %>%
+    mutate(id = ifelse(grepl('MT', id),
+                       str_replace(id, '[0-9]+$',''),
+                       id)) %>%
     group_by(id) %>%
     summarize(gene_length = min(gene_length)) %>%
     ungroup() %>%
@@ -62,8 +66,10 @@ alignment_free <- project_path %>%
     tbl_df
 
 # read genome mapping count files
-files <- c(file.path(project_path, 'genome_mapping/conventional/counts/feature_counts.tsv'),
-           file.path(project_path,'genome_mapping/tgirt_map/Counts/RAW/combined_gene_count.tsv'))
+files <- c(
+           file.path(project_path, 'genome_mapping/conventional/counts/feature_counts.tsv'),
+           file.path(project_path, 'genome_mapping/tgirt_map/Counts/RAW/combined_gene_count.tsv')
+          )
 labels <- c('conventional','customized')
 genome_df <- map2(files, labels, function(x,y) read_tsv(x) %>% 
                       mutate(map_type=y) %>%
@@ -71,13 +77,15 @@ genome_df <- map2(files, labels, function(x,y) read_tsv(x) %>%
     purrr::reduce(rbind) %>%
     mutate(id = str_replace(id,'_gene$',''))%>%
     mutate(id = str_replace(id,'[0-9]+-[0-9]+$',''))%>%
-    inner_join(gene_length_df) %>%
-    gather(samplename, abundance, -id,-map_type, -gene_length) %>%
     mutate(id = ifelse(!grepl('ERCC',id),str_replace(id, '\\-[0-9]+$',''),id)) %>%
     mutate(id = ifelse(grepl('^TR|NM|MT',id), str_replace(id,'[0-9]+$','') ,id)) %>%
     mutate(id = ifelse(grepl('^TR|NM|MT',id), str_replace(id,'[0-9]-$','') ,id)) %>%
     mutate(id = str_replace_all(id, '\\([-+]\\)','')) %>%
-    mutate(id = ifelse(id %in% c('MT-TL','MT-TS'), str_c(id,'1'), id)) %>%
+    mutate(id = ifelse(grepl('MT', id),
+                       str_replace(id, '[0-9]+$',''),
+                       id)) %>%
+    left_join(gene_length_df, on ='id') %>%
+    gather(samplename, abundance, -id,-map_type, -gene_length) %>%
     group_by(id, samplename, map_type) %>%
     summarize(
         abundance = sum(abundance),
@@ -93,9 +101,9 @@ genome_df <- map2(files, labels, function(x,y) read_tsv(x) %>%
     ) %>%
     ungroup() %>%
     mutate(map_type = case_when(
-                                grepl('conventional',.$map_type) ~ "HISAT2+featureCounts",
-                                grepl('customized', .$map_type) ~ "TGIRT-map",
-                                TRUE~ .$map_type)
+                    grepl('conventional',.$map_type) ~ "HISAT2+featureCounts",
+                    grepl('customized', .$map_type) ~ "TGIRT-map",
+                    TRUE~ .$map_type)
     ) %>%
     tbl_df
 
@@ -105,11 +113,25 @@ genome_df %>%
 
 merge_df <- rbind(genome_df, alignment_free) %>%
     mutate(id = str_replace(id, '[0-9]-$','')) %>%
-    inner_join(gene_file) %>%
+    left_join(gene_file, on = 'id') %>%
     mutate(id = ifelse(type == 'Mt', name, id)) %>%
     group_by(map_type,samplename, id, name,type) %>%
     summarize(abundance = sum(abundance)) %>%
     tbl_df
+
+merge_df %>% 
+    filter(type == "tRNA", 
+           abundance > 0, 
+           grepl('Sample_A',samplename)) %>%
+    group_by(id, map_type) %>%
+    summarize(abun= sum(abundance)) %>%
+    ungroup() %>%
+    group_by(id) %>%
+    summarize(found = n(),
+              pipelines = str_c(map_type, collapse=','))
+    
+    
+    
 
 
 plot_df <- merge_df %>% 
@@ -134,12 +156,12 @@ friedman_p <-  plot_df %>%
     friedman.test(gc~map_type|samplename, data=.) %>%
     .$p.value
 
-#friedman_per_type_p <- plot_df %>%
-#    group_by(type) %>%
-#    nest() %>%
- #   mutate(friedman = map(data, ~friedman.test(gene_count~map_type|samplename, data=.))) %>%
- #   mutate(p = map_dbl(friedman, function(x) x$p.value)) %>%
- #   unnest(p)
+friedman_per_type_p <- plot_df %>%
+   group_by(type) %>%
+   nest() %>%
+  mutate(friedman = map(data, ~friedman.test(gene_count~map_type|samplename, data=.))) %>%
+  mutate(p = map_dbl(friedman, function(x) x$p.value)) %>%
+  unnest(p)
 
 #per type p value
 all_comparison <- gtools::permutations(n=4,r=2,
@@ -156,8 +178,8 @@ get_all_p <-function(x1, x2, all_comparison, plot_df){
     
     a <- wilcox_p %>% filter(map_type == x1)
     b <- wilcox_p %>% filter(map_type == x2)
-    cohen <- effsize::cohen.d(a$gc, b$gc, paired=T) %>%
-        .$estimate
+    cohen <- wilcox.test(a$gc, b$gc, paired=T, alternative = "greater") %>%
+        .$p.value
     return(data.frame(cohen, compare))
 }
 pval_df <- all_comparison %>%
@@ -265,7 +287,7 @@ message('Plotted: ', figurename)
 
 average_df <- merge_df %>%
     filter(abundance > 0.1) %>%
-    mutate(samplename = str_replace(samplename,'_[123]$','')) %>%
+    mutate(samplename = str_extract(samplename,'[ABCD]')) %>%
     group_by(map_type, id, type, samplename) %>%
     summarize(abundance = mean(log2(abundance))) %>%
     ungroup()  %>%
@@ -295,9 +317,6 @@ gene_type_cor_dfs <- function(comp1, comp2, average_df){
         summarize(correlation = cor(a, b, use='pairwise.complete.obs')) %>%
         ungroup() %>%
         rbind(total_cor) %>%
-        group_by(type) %>%
-        summarize(average_cor = mean(correlation),
-              stdev = sd(correlation)) %>%
         mutate(comparison = comparison_label) %>%
         ungroup() %>%
         return
@@ -313,9 +332,13 @@ cor_df <- map2_df(all_comparisons[1,],
                   gene_type_cor_dfs, average_df) %>%
     mutate(label = ifelse(comparison %in% c('HISAT2+featureCounts vs TGIRT-map','kallisto vs salmon'),
                           'Within type','Across type')) %>%
-    mutate(type = forcats::fct_reorder(type, average_cor, min)) %>%
+    mutate(type = forcats::fct_reorder(type, correlation, min)) %>%
     mutate(type = factor(type) %>% relevel('Total RNA'))  %>%
-    mutate(type_label = ifelse(type=='Total RNA', 'Total RNA', 'Individual gene type'))
+    mutate(type_label = ifelse(type=='Total RNA', 'Total RNA', 'Individual gene type')) %>%
+    group_by(type, type_label, comparison) %>%
+    summarize(average_cor = mean(correlation),
+              stdev = sd(correlation)) %>%
+    tbl_df
     
 cor_p <- ggplot(data=cor_df %>%
            mutate(comparison = forcats::fct_reorder(comparison, -average_cor, sum)), 
@@ -338,14 +361,8 @@ spreaded_df <-merge_df %>%
     group_by(map_type, samplename, id) %>%
     summarize(abundance = mean(log2(abundance))) %>%
     ungroup() %>%
-    group_by(id, samplename) %>%
-    do(data_frame(
-        map_type=.$map_type,
-        abundance = .$abundance,
-        mean_abundance = mean(.$abundance)
-    )) %>%
-    ungroup() %>%
     spread(map_type, abundance, drop=T) %>%
+    mutate(mean_abundance = rowMeans(dplyr::select(., -samplename, -id))) %>%
     drop_na() %>%
     set_names(make.names(names(.))) %>%
     tbl_df
@@ -449,7 +466,8 @@ ggsave(cor_lines, file = figurename, width=8, height=10)
 message('Plotted: ', figurename)
 
 venn_Df <- merge_df %>% 
-    mutate(samplename = str_replace(samplename,'_[1-3]$','')) %>%
+    mutate(samplename = str_extract(samplename,'[A-D]')) %>%
+    mutate(samplename = str_c('Sample ', samplename)) %>%
     group_by(samplename, id, name, type, map_type) %>%
     summarize(abundance = mean(abundance)) %>%
     filter(abundance > 0.1)  %>% 
@@ -535,30 +553,6 @@ spreaded_merge <- merge_df %>%
     spread(map_type, abundance, fill=0) %>%
     select(-3,-4) %>%
     tbl_df
-
-color_i <- 0
-for (sm in spreaded_merge$samplename %>% unique){
-    color_i <- color_i + 1
-    figurename <- str_c(figurepath, '/upset_',sm,'.pdf')
-    pdf(figurename, width=10,height=7,onefile=FALSE)
-    upset(spreaded_merge %>% 
-          filter(samplename==sm) %>% 
-          select(-samplename) %>%
-          data.frame,
-        order.by = "freq",
-        main.bar.color = colors[color_i],
-        decreasing=F,
-        empty.intersections = "on",
-        nsets = 6, number.angles = 30, 
-        point.size = 3.5, line.size = 2,  
-        #c(intersection size title, intersection size tick labels, 
-        #  set size title, set size tick labels, set names, numbers above bars).
-        text.scale=c(1.8, 1.8, 1, 1, 1.3, 1.8),
-        mb.ratio = c(0.7,0.3))
-    dev.off()
-    message('Plotted: ', figurename)
-}
-
 
 
 gene_count_table <- str_c(figurepath, '/gene_count.csv')

@@ -1,6 +1,7 @@
 #/usr/bin/env python
 
 import pandas as pd
+import numpy as np
 import os
 import re
 
@@ -41,11 +42,16 @@ new_colnames.extend(colnames)
 df = df[new_colnames]
 
 tablename =count_path + '/feature_counts.tsv' 
-df \
+sum_df = df \
     .merge(read_genes_info(), on ='id', how = 'left') \
     .assign(id = lambda d: [assign_rRNA(row) for i, row in d.iterrows()])\
-    .drop(['name','type'], axis=1)\
     .assign(id = lambda d: d.id.str.replace('_gene$','')) \
+    .assign(id = lambda d: np.where(d.name.str.contains('MT-T'),
+                                    d.name.str.replace('[0-9]+$',''),
+                                    d.id))\
+    .drop(['name','type'], axis=1)\
+    .groupby(['id'], as_index=False)\
+    .sum() \
     .to_csv(tablename, index=False, sep='\t')
 print('Written %s' %tablename)
 

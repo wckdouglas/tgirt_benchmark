@@ -17,7 +17,6 @@ tx2gene <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcript
     read_tsv()  %>%
     dplyr::rename(target_id=t_id) %>%
     dplyr::select(target_id, gene_id) %>%
-    dplyr::filter(!grepl('MT', gene_id)) %>%
     set_names(c('TXNAME','GENEID')) %>%
     tbl_df
 

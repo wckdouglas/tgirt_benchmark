@@ -18,7 +18,6 @@ tx2gene <- '/stor/work/Lambowitz/ref/benchmarking/human_transcriptome/transcript
     dplyr::rename(target_id=t_id) %>%
     dplyr::select(target_id, gene_id) %>%
     set_names(c('TXNAME','GENEID')) %>%
-    filter(!grepl('MT',GENEID)) %>%
     tbl_df
 
 # make sample file and annotations
@@ -91,4 +90,5 @@ run_all <- function(kmer){
 }
 
 kmers <- c('','_11','_15','_21','_aligned')
+kmers <- c('_aligned')
 lapply(kmers, run_all)

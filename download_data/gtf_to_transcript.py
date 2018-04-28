@@ -81,13 +81,11 @@ for line in open(gtf, 'r'):
             if 'rRNA' in name or gene_type == 'tRNA':
                 gene_id = name
 
+            elif gene_type == "Mt" and 'MT-T' in name:
+                name = re.sub('[0-9]+$','',name)
+                gene_id = name
+            
             print(line_template.format(gene_id = gene_id,
                                 name =  name ,
                                 type =  gene_type,
                                 t_id = info_dict['transcript_id']))
-            
-            if gene_type == "Mt" and 'MT-T' in name:
-                print(line_template.format(gene_id = name,
-                    name =  name ,
-                    type =  gene_type,
-                    t_id = info_dict['transcript_id'])) 

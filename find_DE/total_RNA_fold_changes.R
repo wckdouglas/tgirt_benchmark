@@ -184,7 +184,7 @@ tRNA_error <- fc_type_df %>%
         geom_line(size=2, aes(color=map_type)) +
         labs(y = 'Cumulative error\n(log2 fold change)',
              x='Number of tRNA', color = ' ') +
-        scale_x_continuous(breaks=seq(0,56,8), limits=c(1,56)) +
+        scale_x_continuous(breaks=seq(0,58,8), limits=c(1,58)) +
         theme(legend.position = 'none')+
         scale_color_manual(values=colors) +
         draw_text('Alignment-free', 24, 5) +
@@ -284,11 +284,14 @@ length_tile_p <- ggplot(data=quantile_length_r2,
     facet_grid(~length_tile_group) +
     scale_fill_manual(values=colors) +
     labs(x='Pipeline', y = expression(R^2), fill= ' ') +
-    theme(axis.text.x=element_blank()) 
+    theme(axis.text.x=element_blank()) +
+    geom_hline(yintercept = 0)
 
-r2_p <- plot_grid(p2, length_tile_p, ncol=1, align = 'v',
-                  labels = c('a','b'), axis='l')
-figurename <- str_c(figurepath, '/fold_change_supplementary.png')
+r2_p <- plot_grid(p2 +  geom_hline(yintercept = 0), 
+                  length_tile_p, ncol=1, align = 'v',
+                  labels = c('a','b'), axis='l',
+                  label_size = 20)
+figurename <- str_c(figurepath, '/fold_change_supplementary.pdf')
 save_plot(r2_p , file=figurename,  base_width=10, base_height=10) 
 message('Saved: ', figurename)
 
@@ -329,8 +332,6 @@ s_p <- ggplot() +
     facet_wrap(~length_tile_group, scale='free') +
     labs(x = 'Expected fold change CD (log2)', y = 'Measured fold change CD (log2)', 
          color = ' ', fill = 'Density') +
-    xlim(-1,1) +
-    ylim(-1,1) +
     geom_abline(intercept = 0, slope = 1, color = 'red', alpha=0.6) +
     geom_text(data=r2_df, x = -0.4, y = 0.8,
               aes(label = r2_label), face='bold', size = 7, 
@@ -340,7 +341,9 @@ s_p <- ggplot() +
               color='white', parse=T)+
     viridis::scale_fill_viridis() +
     panel_border()  +
-    theme(strip.text = element_text(size = 16))
+    theme(strip.text = element_text(size = 16)) +
+    scale_y_continuous(expand=c(0,0), limits = c(-1,1)) +
+    scale_x_continuous(expand=c(0,0), limits = c(-1,1))
 message('Plotted S curve')
 figurename <- str_c(figurepath, '/kallisto_r2_splot.png')
 save_plot(s_p, file=figurename,  base_width=10, base_height=10) 
@@ -348,7 +351,7 @@ message('Saved: ', figurename)
 
 
 
-#plot all low
+#plot all short
 all_quantile_length <- fc_df %>% 
     inner_join(gene_length)  %>%
     #    write_feather('/stor/work/Lambowitz/cdw2854/bench_marking/DEgenes/fc_table.feather')
@@ -381,8 +384,6 @@ s_p <- ggplot() +
     facet_wrap(~map_type, scale='free') +
     labs(x = 'Expected fold change CD (log2)', y = 'Measured fold change CD (log2)', 
          color = ' ', fill = 'Density') +
-    xlim(-1,1) +
-    ylim(-1,1) +
     geom_abline(intercept = 0, slope = 1, color = 'red', alpha=0.6) +
     geom_text(data=r2_df, x = -0.4, y = 0.8,
               aes(label = r2_label), face='bold', size = 7, 
@@ -392,7 +393,9 @@ s_p <- ggplot() +
               color='white', parse=T)+
     viridis::scale_fill_viridis() +
     panel_border()  +
-    theme(strip.text = element_text(size = 16))
+    theme(strip.text = element_text(size = 16)) +
+    scale_y_continuous(expand=c(0,0), limits = c(-1,1)) +
+    scale_x_continuous(expand=c(0,0), limits = c(-1,1))
 message('Plotted S curve')
 figurename <- str_c(figurepath, '/all_short_r2_splot.png')
 save_plot(s_p, file=figurename,  base_width=10, base_height=10) 

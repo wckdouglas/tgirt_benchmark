@@ -50,9 +50,10 @@ read_table_func <- function(tablename){
         read_tsv()  %>%
         mutate(id = str_replace(id, '_gene$','')) %>%
         mutate(id = str_replace(id, '[0-9]+-[0-9]+$','')) %>%
+        mutate(id = str_replace(id,'[0-9]+\\([+-]\\)','')) %>%
         mutate(id = str_replace(id,'\\([+-]\\)','')) %>%
         left_join(gene_df) %>% 
-        mutate(id = ifelse(type %in% c('Mt','rRNA'),name, id)) %>%
+        mutate(id = ifelse(type %in% c('rRNA'), name, id)) %>%
         dplyr::select(-name, -type) %>%
         group_by(id) %>% 
         summarize_all(sum) %>%

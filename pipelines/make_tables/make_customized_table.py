@@ -5,17 +5,18 @@ import numpy as np
 import glob
 import os
 import re
+from builtins import map, range
 
 def trim():
-    seqfile = '/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/Trim/sequence_count.tsv'
+    seqfile = '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking/genome_mapping/tgirt_map/Trim/seq_count.txt'
     df = pd.read_table(seqfile, sep=':', names=['samplename','trim_count']) \
-        .assign(samplename = lambda d: d.samplename.str.replace('.1.fq.gz',''))
+        .assign(samplename = lambda d: d.samplename.str.replace('.1.fq.gz','').map(os.path.basename)) 
     return df
 
 def raw_read():
-    seq_count = '/stor/scratch/Lambowitz/cdw2854/bench_marking/data/sequence_count.tsv'
+    seq_count = '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking/data/seq_count.txt'
     seq_df = pd.read_table(seq_count, sep=':',names=['samplename','raw count'])\
-            .assign(samplename = lambda d: d.samplename.str.replace('_R1_001.fastq.gz',''))
+            .assign(samplename = lambda d: d.samplename.str.replace('.fastq.gz','').map(os.path.basename))
     return seq_df
 
 
@@ -59,21 +60,23 @@ def read_sample(sample_folder):
             bowtie_mapped, bowtie_unique_mapped)
 
 def main():
-    project_path = '/stor/work/Lambowitz/cdw2854/bench_marking'
-    base_path = project_path + '/genome_mapping'
+    project_path = '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking'
+    base_path = project_path + '/genome_mapping/tgirt_map'
     samples = glob.glob(base_path + '/Sample-*')
-    samples = filter(lambda x: re.search('-[ABCD]-[123]$',x), samples)
-    df = pd.DataFrame(map(read_sample,samples), columns = [ 'samplename','premap_trRNA','trimmed_non_trRNA',
-                                                  'hisat_mapped','hisat_uniq','bowtie_mapped','bowtie_uniq'])
+    samples = filter(lambda x: re.search('-[ABCD]-[123]',x), samples)
+    df = pd.DataFrame(list(map(read_sample,samples)), 
+                      columns = [ 'samplename','premap_trRNA','trimmed_non_trRNA',
+                                'hisat_mapped','hisat_uniq','bowtie_mapped','bowtie_uniq'])
     df = df.merge(trim()).merge(raw_read()) \
         .sort_values('samplename')\
         .pipe(lambda d: d[['samplename','raw count','trim_count','premap_trRNA','trimmed_non_trRNA','hisat_mapped',
-             'hisat_uniq','bowtie_mapped','bowtie_uniq']])
+             'hisat_uniq','bowtie_mapped','bowtie_uniq']]) \
+        .assign(samplename = lambda d: d.samplename.str.replace('_R1_001$',''))
     df.columns = ['Sample name','Raw pairs','Trimmed pairs','tRNA/rRNA pairs','non tRNA/rRNA pairs','HISAT mapped pairs',
                   'HISAT uniquely mapped','BOWTIE2 mapped pairs','BOWTIE2 uniquely mapped']
     tablename = project_path + '/tables/customized_table.csv'
     df.to_csv(tablename, index=False)
-    print 'Written %s' %tablename
+    print('Written %s' %tablename)
 
 if __name__ == '__main__':
     main()

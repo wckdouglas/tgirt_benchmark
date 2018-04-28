@@ -5,6 +5,8 @@ import glob
 import os
 import re
 from make_customized_table import read_flag_stat, raw_read
+from builtins import map
+import six
 
 def read_log(logfile):
     tf = []
@@ -17,12 +19,12 @@ def read_log(logfile):
     return tf, af
 
 
-def features():
-    path = '/stor/home/cdw2854/tgirt_benchmark/pipelines/genome_mapping/conventional'
+def features(project_path):
+    path = project_path + '/genome_mapping/conventional/counts'
     log = path + '/log'
-    count = '/stor/work/Lambowitz/cdw2854/bench_marking/genome_mapping/Trim/conventional/counts/counts.tsv'
-    header = open(count).next()
-    bams = filter(lambda x: re.search('bam"$',x), header.split(' '))
+    count = path + '/counts'
+    header = six.next(open(count,'r'))
+    bams = list(filter(lambda x: re.search('bam"$',x), header.split(' ')))
     bams = pd.Series(bams).str.split('/',expand=True).values[:,-1]
     tf, af = read_log(log)
     df = pd.DataFrame({'samplename':bams,
@@ -41,12 +43,12 @@ def read_file(flag_stat_file):
 
 
 project_path = '/stor/work/Lambowitz/cdw2854/bench_marking_new/bench_marking'
-base_path = project_path + '/genome_mapping/tgirt_map/Trim'
-flagstat_path = base_path + '/conventional/bam_files'
+base_path = project_path + '/genome_mapping/conventional'
+flagstat_path = base_path + '/bam_files'
 samples = glob.glob(flagstat_path + '/*flagstat')
-df = pd.DataFrame(map(read_file, samples), 
+df = pd.DataFrame(list(map(read_file, samples)), 
                   columns = ['samplename','trimmed','proper mapped'])
-feature_df = features()
+feature_df = features(project_path)
 df = df.merge(feature_df, on='samplename') \
         .merge(raw_read(), on='samplename')\
         .sort_values('samplename') \
@@ -58,7 +60,7 @@ df.columns = ['Sample name','Raw pairs','Trimmed pairs','Properly mapped fragmen
 df.columns = df.columns.str.replace('_',' ')
 tablename = project_path + '/tables/conventional_table.csv'
 df.to_csv(tablename, index=False)
-print 'Written %s' %tablename
+print('Written %s' %tablename)
 
 
 

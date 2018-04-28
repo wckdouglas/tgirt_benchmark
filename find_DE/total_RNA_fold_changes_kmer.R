@@ -36,7 +36,11 @@ df <- project_path %>%
                         grepl('_[0-9]+', .$map_type)~str_replace(.$map_type,'_','\nkmer='),
                         grepl('Salmon', .$map_type)~'Salmon\nkmer=31',
                         grepl('Cust',.$map_type) ~ "TGIRT-map",
-                        TRUE~.$map_type))
+                        TRUE~.$map_type)) %>%
+    mutate(id = str_replace(id,'_gene$','')) %>%
+    mutate(id = ifelse(grepl('^MT-T', id),
+                       str_replace(id, '[0-9]+',''),
+                       id))
     
     
 #z <- 1.43`
@@ -68,7 +72,7 @@ fc_df <- df %>%
     mutate(error = logFC_CD - predict) %>% 
     ungroup() %>%
     mutate(analytic_type = ifelse(grepl('pipe',map_type),'Genome Mapping','Alignment-free')) %>%
-    inner_join(gene_file %>% 
+    left_join(gene_file %>% 
                    select(id,name,type) %>% 
                    unique,
                by = 'id') %>%
@@ -171,7 +175,7 @@ tRNA_error <- fc_type_df %>%
         geom_line(size=2, aes(color=map_type)) +
         labs(y = 'Cumulative error\n(log2 fold change)',
              x='Number of tRNA', color = ' ') +
-        scale_x_continuous(breaks=seq(0,56,8), limits=c(1,56)) +
+        scale_x_continuous(breaks=seq(0,58,8), limits=c(1,58)) +
         scale_color_manual(values=colors) +
         theme(legend.position = 'none') +
         draw_text('k = 11 or 31', 40, 13) +
@@ -209,7 +213,8 @@ length_tile_p <- ggplot(data=quantile_length, aes(x=map_type, y = rs, fill = map
     scale_fill_manual(values=colors) +
     labs(x='Pipeline', y = expression(R^2), fill= ' ') +
     theme(axis.text.x=element_blank())  +
-    theme(legend.key.height = unit(2,'line')) 
+    theme(legend.key.height = unit(2,'line')) +
+    geom_hline(yintercept = 0)
 
 p <- plot_grid(length_tile_p+
                    theme(axis.text = element_text(size=font_size),
@@ -221,6 +226,6 @@ p <- plot_grid(length_tile_p+
                ncol=1,align='v', axis='l',
                labels = letters[1:2], label_size=20,
                rel_heights=c(1.5,1))
-figurename <- str_c(figurepath, '/fold_change_all_gene_kmer.png')
+figurename <- str_c(figurepath, '/fold_change_all_gene_kmer.pdf')
 save_plot(p, file=figurename,  base_width=10, base_height=8) 
 message('Saved: ', figurename)
