@@ -17,12 +17,13 @@ do
     BAM_FILE=$BAM_PATH/${SAMPLENAME}.bam
     echo bowtie2 --threads $THREADS \
             -x $TRANSCRIPTOME_INDEX \
+            --score-min G,1,10 \
             -k 30 -D 20 -R 3 -N 0 -L 8 -i S,1,0.50 \
             -1 ${R1} -2 ${R2} \
             --no-mixed --no-discordant --dovetail \
-            --fr  \
+            --fr --local  \
         \| samtools view -b@ $THREADS \
-        \>  $BAM_FILE \
+        \> $BAM_FILE \
         \; time salmon quant \
             --seqBias --gcBias \
             --libType ISF \
