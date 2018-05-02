@@ -4,6 +4,19 @@ This is the repository for storing scripts attempting to compare pipelines for T
 
 We used [MAQC samples](https://www.ncbi.nlm.nih.gov/bioproject?LinkName=sra_bioproject&from_uid=2017824) as test data.
 
+
+Set up environment
+```
+conda create -n benchmark \
+    python=3.6 \
+    bioconductor-deseq2=1.14 \
+    salmon=0.8.2 \
+    kallisto=0.43 \
+    bioconductor-tximport=1.4.0 \
+    r-tidyverse \
+    hisat2=2.1.0 \
+    bowtie2=2.3.3
+```
 ---
 
 ## Download data ##
